@@ -9,51 +9,56 @@ echo.
 
 :: 1. Comprobar si Python esta instalado
 python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [!] Python no esta instalado. Instalando automaticamente...
-    echo.
-    winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
-    python --version >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo [!] No se pudo instalar Python automaticamente.
-        echo     Descargalo manualmente desde: https://www.python.org/downloads/
-        echo     IMPORTANTE: Marca la casilla "Add Python to PATH"
-        pause
-        exit /b 1
-    )
-    echo [OK] Python instalado correctamente.
-    echo [!] CIERRA esta ventana y vuelve a ejecutar instalar.bat
+if not errorlevel 1 goto python_ok
+
+echo [!] Python no esta instalado. Instalando automaticamente...
+echo.
+winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+:: Refrescar variables de entorno temporalmente
+set PATH=%PATH%;C:\Users\%USERNAME%\AppData\Local\Programs\Python\Python312\
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo [!] No se pudo instalar Python automaticamente.
+    echo     Descargalo manualmente desde: https://www.python.org/downloads/
+    echo     IMPORTANTE: Marca la casilla "Add Python to PATH"
     pause
-    exit /b 0
-) else (
-    echo [OK] Python ya esta instalado.
+    exit /b 1
 )
+echo [OK] Python instalado correctamente.
+echo [!] CIERRA esta ventana y vuelve a ejecutar instalar.bat
+pause
+exit /b 0
+
+:python_ok
+echo [OK] Python ya esta instalado.
 
 :: 2. Comprobar si Git esta instalado
 git --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [!] Git no esta instalado. Instalando automaticamente...
-    winget install Git.Git --accept-package-agreements --accept-source-agreements
-    git --version >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo [!] No se pudo instalar Git automaticamente.
-        echo     Descargalo manualmente desde: https://git-scm.com/download/win
-        pause
-        exit /b 1
-    )
-    echo [OK] Git instalado correctamente.
-    echo [!] CIERRA esta ventana y vuelve a ejecutar instalar.bat
+if not errorlevel 1 goto git_ok
+
+echo [!] Git no esta instalado. Instalando automaticamente...
+winget install Git.Git --accept-package-agreements --accept-source-agreements
+set PATH=%PATH%;C:\Program Files\Git\cmd\
+git --version >nul 2>&1
+if errorlevel 1 (
+    echo [!] No se pudo instalar Git automaticamente.
+    echo     Descargalo manualmente desde: https://git-scm.com/download/win
     pause
-    exit /b 0
-) else (
-    echo [OK] Git ya esta instalado.
+    exit /b 1
 )
+echo [OK] Git instalado correctamente.
+echo [!] CIERRA esta ventana y vuelve a ejecutar instalar.bat
+pause
+exit /b 0
+
+:git_ok
+echo [OK] Git ya esta instalado.
 
 :: 3. Instalar dependencias de Python
 echo.
 echo Instalando dependencias de Python...
 pip install -r requirements.txt windows-curses
-if %errorlevel% neq 0 (
+if errorlevel 1 (
     echo [!] Error instalando dependencias.
     pause
     exit /b 1
@@ -61,19 +66,22 @@ if %errorlevel% neq 0 (
 echo [OK] Dependencias instaladas.
 
 :: 4. Comprobar VLC
-if exist "C:\Program Files\VideoLAN\VLC\vlc.exe" (
-    echo [OK] VLC detectado.
-) else if exist "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe" (
-    echo [OK] VLC detectado.
+if exist "C:\Program Files\VideoLAN\VLC\vlc.exe" goto vlc_ok
+if exist "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe" goto vlc_ok
+
+echo [!] VLC no esta instalado. Instalando automaticamente...
+winget install VideoLAN.VLC --accept-package-agreements --accept-source-agreements
+if errorlevel 1 (
+    echo [!] Instala VLC manualmente desde: https://www.videolan.org/vlc/
 ) else (
-    echo [!] VLC no esta instalado. Instalando automaticamente...
-    winget install VideoLAN.VLC --accept-package-agreements --accept-source-agreements
-    if %errorlevel% neq 0 (
-        echo [!] Instala VLC manualmente desde: https://www.videolan.org/vlc/
-    ) else (
-        echo [OK] VLC instalado correctamente.
-    )
+    echo [OK] VLC instalado correctamente.
 )
+goto vlc_done
+
+:vlc_ok
+echo [OK] VLC detectado.
+
+:vlc_done
 
 echo.
 echo ============================================
