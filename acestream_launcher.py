@@ -246,11 +246,16 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
 
     play_url = f"{ACE_API}/ace/getstream?id={content_id}"
 
-    # Hilo para forzar a AceStream a empezar a buscar (ignora la respuesta)
+    engine_ready = False
+
+    # Hilo para forzar a AceStream a empezar a buscar
     def trigger_engine():
+        nonlocal engine_ready
         try:
             req = urllib.request.Request(play_url, headers={'User-Agent': 'VLC/3.0.0'})
-            urllib.request.urlopen(req, timeout=30)
+            # urlopen se bloquea hasta que AceStream termina el pre-buffering
+            with urllib.request.urlopen(req, timeout=30) as r:
+                engine_ready = True
         except Exception:
             pass
 
@@ -269,6 +274,11 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
             status = stat["response"].get("status", "")
             if peers > 0 and status in ("dl", "prebuf", "buf"):
                 break
+                
+        # Si el hilo de urllib consiguio respuesta, el stream ya esta listo
+        if engine_ready:
+            break
+            
         elapsed = i * 0.5
         msg = f"{spinner[spin_i]} Conectando a la red... {peers} peers | {elapsed:.0f}s"
         safe_addstr(stdscr, status_y, 2, msg.ljust(w - 4),
