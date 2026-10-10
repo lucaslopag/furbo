@@ -80,7 +80,9 @@ echo [OK] Red antibloqueo instalada.
 :: 4. Instalar dependencias de Python
 echo.
 echo Instalando dependencias de Python...
-pip install -r requirements.txt windows-curses
+python -m ensurepip --upgrade >nul 2>&1
+python -m pip install --upgrade pip >nul 2>&1
+python -m pip install -r requirements.txt windows-curses
 if errorlevel 1 (
     echo [!] Error instalando dependencias.
     pause
