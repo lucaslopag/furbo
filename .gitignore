@@ -13,7 +13,10 @@ dist/
 
 # Paquetes y Releases
 Release/
-*.zip
+
+# Logs
+acestream_error.log
 
 # Otros
 .DS_Store
+*.xlsx
