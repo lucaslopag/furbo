@@ -54,7 +54,30 @@ exit /b 0
 :git_ok
 echo [OK] Git ya esta instalado.
 
-:: 3. Instalar dependencias de Python
+:: 3. Instalar red antibloqueo (Cloudflare WARP)
+warp-cli --version >nul 2>&1
+if not errorlevel 1 goto warp_ok
+
+echo.
+echo [!] VPN Antibloqueo (WARP) no encontrado. Instalando automaticamente...
+winget install Cloudflare.Warp --accept-package-agreements --accept-source-agreements
+set PATH=%PATH%;C:\Program Files\Cloudflare\Cloudflare WARP\
+warp-cli --version >nul 2>&1
+if errorlevel 1 (
+    echo [!] No se pudo instalar WARP automaticamente.
+    echo     Puedes bajarlo manualmente de https://1.1.1.1 para saltar los bloqueos.
+    pause
+) else (
+    echo [*] Configurando conexion VPN antibloqueo...
+    warp-cli registration new >nul 2>&1
+    warp-cli connect >nul 2>&1
+    echo [OK] Red antibloqueo lista!
+)
+
+:warp_ok
+echo [OK] Red antibloqueo instalada.
+
+:: 4. Instalar dependencias de Python
 echo.
 echo Instalando dependencias de Python...
 pip install -r requirements.txt windows-curses
