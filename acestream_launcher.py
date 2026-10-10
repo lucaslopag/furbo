@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """
-AceStream Launcher - Selecciona canal con flechas y lo abre en VLC
+AceStream Launcher - Selecciona canal con flechas y lo abre en el reproductor
+Compatible con Linux y Windows.
 """
 import curses
 import subprocess
 import time
 import os
+import sys
 import urllib.request
 import urllib.error
 import json
-import threading
+
+# ── Ruta base del proyecto (compatible con PyInstaller y ejecución normal) ───
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+IS_WINDOWS = os.name == 'nt'
 
 # ── Carga canales desde el .ods ──────────────────────────────────────────────
 def load_channels():
@@ -19,32 +28,25 @@ def load_channels():
         import odf.text as otext
 
         def cell_text(cell):
+            """Extrae todo el texto de una celda ODS, incluyendo hyperlinks."""
             parts = []
             for p in cell.getElementsByType(otext.P):
-                s = ""
+                fragments = []
                 def extract(node):
-                    nonlocal s
                     if hasattr(node, 'data'):
-                        s += node.data
+                        fragments.append(node.data)
                     for child in node.childNodes:
                         extract(child)
                 for node in p.childNodes:
                     extract(node)
-                parts.append(s)
+                parts.append("".join(fragments))
             return " ".join(parts).strip()
-            
-        import sys
-        
-        if getattr(sys, 'frozen', False):
-            base_dir = os.path.dirname(sys.executable)
-        else:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            
-        ods_path = os.path.join(base_dir, "Acestream_Links.ods")
-        
+
+        ods_path = os.path.join(BASE_DIR, "Acestream_Links.ods")
+
         if not os.path.exists(ods_path):
             return []
-            
+
         doc = od.load(ods_path)
         channels = []
         for sheet in doc.spreadsheet.getElementsByType(ot.Table):
@@ -54,10 +56,11 @@ def load_channels():
                 cols = [cell_text(c) for c in row.getElementsByType(ot.TableCell)]
                 while len(cols) < 6:
                     cols.append("")
-                name = cols[0]
-                lang = cols[1]
+                name = cols[0].strip()
+                lang = cols[1].strip()
                 url = ""
                 for c in cols:
+                    c = c.strip()
                     if c.startswith("http://127.0.0.1:6878"):
                         url = c
                         break
@@ -68,10 +71,15 @@ def load_channels():
                 if url and name:
                     channels.append({"name": name, "lang": lang, "url": url})
         return channels
-    except Exception as e:
+    except Exception:
+        # Escribir error a un log para poder depurar
         import traceback
-        with open("/tmp/acestream_error.log", "w") as f:
-            traceback.print_exc(file=f)
+        log_path = os.path.join(BASE_DIR, "acestream_error.log")
+        try:
+            with open(log_path, "w") as f:
+                traceback.print_exc(file=f)
+        except Exception:
+            pass
         return []
 
 # ── Colores por idioma ───────────────────────────────────────────────────────
@@ -86,7 +94,6 @@ def safe_addstr(stdscr, y, x, text, attr=0):
     if max_len <= 0:
         return
     text = text[:max_len]
-    # En la última celda de la pantalla curses falla, usamos insch
     try:
         if attr:
             stdscr.addstr(y, x, text, attr)
@@ -101,7 +108,7 @@ def safe_hline(stdscr, y, x, ch, n):
     except curses.error:
         pass
 
-# ── Docker ───────────────────────────────────────────────────────────────────
+# ── API del motor AceStream ─────────────────────────────────────────────────
 ACE_API = "http://127.0.0.1:6878"
 
 def ace_api(path):
@@ -112,119 +119,172 @@ def ace_api(path):
     except Exception:
         return None
 
-def ensure_docker(stdscr, h, w, msg_y):
-    safe_addstr(stdscr, msg_y, 2, "⏳ Verificando Proxy Tor y Docker AceStream...".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
+# ── Arranque del motor ───────────────────────────────────────────────────────
+def ensure_engine(stdscr, h, w, msg_y):
+    """Arranca el motor de AceStream (Docker en Linux, app nativa en Windows)."""
+    safe_addstr(stdscr, msg_y, 2, "⏳ Verificando motor AceStream...".ljust(w - 4),
+                curses.color_pair(7) | curses.A_BOLD)
     stdscr.refresh()
-    
-    import os
-    if os.name == 'nt':
-        safe_addstr(stdscr, msg_y, 2, "💻 Modo Windows: Asegúrate de tener AceStream Engine abierto en la bandeja.".ljust(w-4), curses.color_pair(2) | curses.A_BOLD)
+
+    if IS_WINDOWS:
+        # En Windows, AceStream corre como app nativa (bandeja del sistema)
+        safe_addstr(stdscr, msg_y, 2,
+                    "Modo Windows: comprobando AceStream Engine...".ljust(w - 4),
+                    curses.color_pair(2) | curses.A_BOLD)
         stdscr.refresh()
-        time.sleep(2)
-        # Esperar a que el motor de Windows esté listo en el puerto 6878
-        for _ in range(5):
+        for attempt in range(10):
             if ace_api("/webui/api/service?method=get_version"):
-                break
-            safe_addstr(stdscr, msg_y, 2, f"⏳ Buscando AceStream Engine en Windows{'.'*(_ % 4)}  ".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
+                safe_addstr(stdscr, msg_y, 2,
+                            "Motor AceStream detectado".ljust(w - 4),
+                            curses.color_pair(2) | curses.A_BOLD)
+                stdscr.refresh()
+                time.sleep(0.5)
+                return
+            dots = "." * (attempt % 4 + 1)
+            safe_addstr(stdscr, msg_y, 2,
+                        f"Buscando AceStream Engine{dots}".ljust(w - 4),
+                        curses.color_pair(7) | curses.A_BOLD)
             stdscr.refresh()
             time.sleep(1)
+        safe_addstr(stdscr, msg_y, 2,
+                    "! No se encontro AceStream. Abrelo manualmente.".ljust(w - 4),
+                    curses.color_pair(7) | curses.A_BOLD)
+        stdscr.refresh()
+        time.sleep(2)
         return
 
-    # 1. Tor Proxy (Linux)
-    res_tor = subprocess.run(["sudo", "-S", "docker", "inspect", "-f", "{{.State.Running}}", "tor-proxy"], input="s\n", capture_output=True, text=True)
+    # ── Linux: gestionar contenedores Docker ──
+    # 1. Tor Proxy (antibloqueo de ISP)
+    res_tor = subprocess.run(
+        ["sudo", "-S", "docker", "inspect", "-f", "{{.State.Running}}", "tor-proxy"],
+        input="s\n", capture_output=True, text=True
+    )
     if res_tor.stdout.strip() != "true":
-        safe_addstr(stdscr, msg_y, 2, "🚀 Arrancando Proxy antibloqueo (Tor)...".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
-        stdscr.refresh()
-        subprocess.run(["sudo", "-S", "docker", "run", "-d", "--name", "tor-proxy", "--network", "host", "--restart", "unless-stopped", "dockage/tor-privoxy:latest"], input="s\n", capture_output=True, text=True)
-        time.sleep(3) # Darle unos segundos a Tor para conectar a los nodos
-
-    # 2. AceStream (Linux)
-    res_ace = subprocess.run(["sudo", "-S", "docker", "inspect", "-f", "{{.State.Running}}", "acestream"], input="s\n", capture_output=True, text=True)
-    if res_ace.stdout.strip() != "true":
-        safe_addstr(stdscr, msg_y, 2, "🚀 Arrancando motor AceStream (Docker)...".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
+        safe_addstr(stdscr, msg_y, 2,
+                    "Arrancando Proxy antibloqueo (Tor)...".ljust(w - 4),
+                    curses.color_pair(7) | curses.A_BOLD)
         stdscr.refresh()
         subprocess.run(
             ["sudo", "-S", "docker", "run", "-d",
-             "--name", "acestream", "--network", "host", "--restart", "unless-stopped",
-             "-e", "HTTP_PROXY=http://127.0.0.1:8118", "-e", "HTTPS_PROXY=http://127.0.0.1:8118",
+             "--name", "tor-proxy", "--network", "host",
+             "--restart", "unless-stopped",
+             "dockage/tor-privoxy:latest"],
+            input="s\n", capture_output=True, text=True
+        )
+        time.sleep(3)
+
+    # 2. Motor AceStream
+    res_ace = subprocess.run(
+        ["sudo", "-S", "docker", "inspect", "-f", "{{.State.Running}}", "acestream"],
+        input="s\n", capture_output=True, text=True
+    )
+    if res_ace.stdout.strip() != "true":
+        safe_addstr(stdscr, msg_y, 2,
+                    "Arrancando motor AceStream (Docker)...".ljust(w - 4),
+                    curses.color_pair(7) | curses.A_BOLD)
+        stdscr.refresh()
+        subprocess.run(
+            ["sudo", "-S", "docker", "run", "-d",
+             "--name", "acestream", "--network", "host",
+             "--restart", "unless-stopped",
+             "-e", "HTTP_PROXY=http://127.0.0.1:8118",
+             "-e", "HTTPS_PROXY=http://127.0.0.1:8118",
              "-e", "NO_PROXY=127.0.0.1,localhost,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12",
              "jopsis/acestream:latest"],
             input="s\n", capture_output=True, text=True
         )
-        # Esperar a que el motor esté listo
-        for _ in range(15):
+        for attempt in range(15):
             if ace_api("/webui/api/service?method=get_version"):
                 break
-            safe_addstr(stdscr, msg_y, 2, f"⏳ Esperando motor{'.'*(_ % 4)}  ".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
+            dots = "." * (attempt % 4 + 1)
+            safe_addstr(stdscr, msg_y, 2,
+                        f"Esperando motor{dots}".ljust(w - 4),
+                        curses.color_pair(7) | curses.A_BOLD)
             stdscr.refresh()
             time.sleep(1)
-            
-    safe_addstr(stdscr, msg_y, 2, "✅ Motor AceStream + Red Antibloqueo listos".ljust(w-4), curses.color_pair(2) | curses.A_BOLD)
+
+    safe_addstr(stdscr, msg_y, 2,
+                "Motor AceStream + Red Antibloqueo listos".ljust(w - 4),
+                curses.color_pair(2) | curses.A_BOLD)
     stdscr.refresh()
     time.sleep(0.5)
 
-def start_stream_and_open_vlc(content_id, ch_name, stdscr, status_y, w):
+# ── Iniciar stream y abrir reproductor ───────────────────────────────────────
+def start_stream(content_id, ch_name, stdscr, status_y, w):
     """
     1) Llama a la API para iniciar el stream
-    2) Espera a que haya peers (hasta 30s)
-    3) Lanza VLC con la URL de reproducción
+    2) Espera a que haya peers (hasta 20s)
+    3) Lanza el reproductor con la URL de reproducción
     """
-    spinner = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏']
-    spin_i  = 0
+    spinner = ['|', '/', '-', '\\']
+    spin_i = 0
 
-    # Iniciar stream via API
-    api_start = f"/ace/getstream?id={content_id}&format=json"
-    safe_addstr(stdscr, status_y, 2, f"{spinner[0]} Iniciando stream: {ch_name[:w-20]}...".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
+    safe_addstr(stdscr, status_y, 2,
+                f"{spinner[0]} Iniciando stream: {ch_name[:w - 30]}...".ljust(w - 4),
+                curses.color_pair(7) | curses.A_BOLD)
     stdscr.refresh()
 
     play_url = f"{ACE_API}/ace/getstream?id={content_id}"
 
-    # Sondear la API de estadísticas para detectar peers
-    stat_url = f"/ace/stat/{content_id}"
-    peers     = 0
-    elapsed   = 0
-    MAX_WAIT  = 20  # segundos máximo esperando peers
+    # Sondear peers
+    peers = 0
+    MAX_WAIT = 20
 
     for i in range(MAX_WAIT * 2):
         spin_i = (spin_i + 1) % len(spinner)
-        stat   = ace_api(stat_url)
+        stat = ace_api(f"/ace/stat/{content_id}")
         if stat and stat.get("result"):
             peers = stat["result"].get("peers", 0)
         elapsed = i * 0.5
         msg = f"{spinner[spin_i]} Buscando peers... {peers} peers | {elapsed:.0f}s"
-        safe_addstr(stdscr, status_y, 2, msg.ljust(w-4), curses.color_pair(3) | curses.A_BOLD)
+        safe_addstr(stdscr, status_y, 2, msg.ljust(w - 4),
+                    curses.color_pair(3) | curses.A_BOLD)
         stdscr.refresh()
         if peers > 0:
             break
         time.sleep(0.5)
 
     if peers == 0:
-        safe_addstr(stdscr, status_y, 2, f"⚠  Sin peers — abriendo VLC igualmente (puede tardar)".ljust(w-4), curses.color_pair(7))
+        safe_addstr(stdscr, status_y, 2,
+                    "! Sin peers - abriendo reproductor igualmente (puede tardar)".ljust(w - 4),
+                    curses.color_pair(7))
     else:
-        safe_addstr(stdscr, status_y, 2, f"✅ {peers} peers — abriendo VLC".ljust(w-4), curses.color_pair(2) | curses.A_BOLD)
+        player_name = "VLC" if IS_WINDOWS else "mpv"
+        safe_addstr(stdscr, status_y, 2,
+                    f"{peers} peers - abriendo {player_name}".ljust(w - 4),
+                    curses.color_pair(2) | curses.A_BOLD)
     stdscr.refresh()
     time.sleep(0.5)
 
-    import os
-    if os.name == 'nt':
-        # En Windows probar las rutas típicas de VLC
+    # ── Lanzar el reproductor ──
+    if IS_WINDOWS:
         vlc_paths = [
             r"C:\Program Files\VideoLAN\VLC\vlc.exe",
-            r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
+            r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe",
         ]
         vlc_exe = "vlc"
         for p in vlc_paths:
             if os.path.exists(p):
                 vlc_exe = p
                 break
-        subprocess.Popen([vlc_exe, "--qt-minimal-view", "--meta-title", ch_name, play_url],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            subprocess.Popen(
+                [vlc_exe, "--qt-minimal-view", "--meta-title", ch_name, play_url],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        except FileNotFoundError:
+            safe_addstr(stdscr, status_y, 2,
+                        "ERROR: VLC no encontrado. Instalalo desde videolan.org".ljust(w - 4),
+                        curses.color_pair(1) | curses.A_BOLD)
+            stdscr.refresh()
+            time.sleep(3)
     else:
-        # En Linux seguimos usando el poderoso mpv
         subprocess.Popen(
-            ["mpv", "--quiet", "--no-terminal", "--force-window=immediate", 
-             "--cache=yes", "--demuxer-max-bytes=1000M", "--demuxer-max-back-bytes=200M",
-             "--hwdec=auto", "--vo=gpu", "--profile=gpu-hq", "--deinterlace=auto", 
+            ["mpv", "--quiet", "--no-terminal", "--force-window=immediate",
+             "--cache=yes", "--demuxer-max-bytes=1000M",
+             "--demuxer-max-back-bytes=200M",
+             "--hwdec=auto", "--vo=gpu", "--profile=gpu-hq",
+             "--deinterlace=auto",
              "--title=" + ch_name, play_url],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
@@ -233,56 +293,66 @@ def start_stream_and_open_vlc(content_id, ch_name, stdscr, status_y, w):
 # ── UI ───────────────────────────────────────────────────────────────────────
 def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status):
     h, w = stdscr.getmaxyx()
+    if h < 8 or w < 40:
+        stdscr.erase()
+        safe_addstr(stdscr, 0, 0, "Terminal demasiado pequena")
+        stdscr.refresh()
+        return
     stdscr.erase()
 
     # ── Cabecera ──
-    title = " 🎬  ACESTREAM LAUNCHER "
+    title = " ACESTREAM LAUNCHER "
     safe_addstr(stdscr, 0, 0, title.center(w - 1), curses.color_pair(8) | curses.A_BOLD)
-    controls = " ↑↓ Mover   ENTER Reproducir   / Buscar   q Salir "
+    controls = " Flechas: Mover | ENTER: Reproducir | /: Buscar | q: Salir "
     safe_addstr(stdscr, 1, 0, controls.center(w - 1), curses.color_pair(9))
 
     # ── Separador ──
     safe_hline(stdscr, 2, 0, curses.ACS_HLINE, w - 1)
     if search_mode:
-        hint = f" 🔍 {search}▌ "
+        hint = f" >> {search}_ "
         safe_addstr(stdscr, 2, 2, hint, curses.color_pair(3) | curses.A_BOLD)
     elif search:
-        hint = f" 🔍 '{search}' — {len(channels)} resultado(s) "
+        hint = f" >> '{search}' - {len(channels)} resultado(s) "
         safe_addstr(stdscr, 2, 2, hint, curses.color_pair(4))
 
     # ── Lista de canales ──
     list_top = 3
-    list_bot = h - 3   # dejar 2 líneas para status y controles
-    list_h   = list_bot - list_top
+    list_bot = h - 3
+    list_h = list_bot - list_top
+    if list_h <= 0:
+        return
 
     for i in range(list_h):
         idx = scroll + i
-        y   = list_top + i
+        y = list_top + i
         if idx >= len(channels):
             break
-        ch      = channels[idx]
-        is_sel  = (idx == selected)
-        lang    = ch["lang"]
-        col     = LANG_COLORS.get(lang, 7)
+        ch = channels[idx]
+        is_sel = (idx == selected)
+        lang = ch["lang"]
+        col = LANG_COLORS.get(lang, 7)
         lang_tag = f"[{lang}]"
-        name_w   = w - len(lang_tag) - 5
-        name     = ch["name"][:name_w].ljust(name_w)
+        name_w = w - len(lang_tag) - 5
+        if name_w < 1:
+            name_w = 1
+        name = ch["name"][:name_w].ljust(name_w)
 
         if is_sel:
-            line = f" ▶ {name} {lang_tag} "
-            safe_addstr(stdscr, y, 0, line[:w - 1].ljust(w - 1), curses.color_pair(10) | curses.A_BOLD)
+            line = f" > {name} {lang_tag} "
+            safe_addstr(stdscr, y, 0, line[:w - 1].ljust(w - 1),
+                        curses.color_pair(10) | curses.A_BOLD)
         else:
             safe_addstr(stdscr, y, 0, f"   {name} ", curses.color_pair(0))
             safe_addstr(stdscr, y, 4 + len(name), lang_tag, curses.color_pair(col))
 
     # ── Scrollbar visual ──
-    if len(channels) > list_h:
-        bar_h   = max(1, list_h * list_h // len(channels))
+    if len(channels) > list_h and list_h > 0:
+        bar_h = max(1, list_h * list_h // len(channels))
         bar_pos = int(scroll / max(1, len(channels) - list_h) * (list_h - bar_h))
         for r in range(list_h):
-            c = curses.ACS_CKBOARD if bar_pos <= r < bar_pos + bar_h else ord(' ')
+            ch_char = curses.ACS_CKBOARD if bar_pos <= r < bar_pos + bar_h else ord(' ')
             try:
-                stdscr.addch(list_top + r, w - 1, c, curses.color_pair(9))
+                stdscr.addch(list_top + r, w - 1, ch_char, curses.color_pair(9))
             except curses.error:
                 pass
 
@@ -290,10 +360,11 @@ def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status):
     safe_hline(stdscr, h - 3, 0, curses.ACS_HLINE, w - 1)
 
     # ── Barra de estado ──
-    safe_addstr(stdscr, h - 2, 0, f" {status}"[:w - 1].ljust(w - 1), curses.color_pair(9))
+    safe_addstr(stdscr, h - 2, 0, f" {status}"[:w - 1].ljust(w - 1),
+                curses.color_pair(9))
 
     # ── Controles ──
-    controls_bot = "  ESC Limpiar búsqueda   PgUp/PgDn Página"
+    controls_bot = "  ESC: Limpiar busqueda | PgUp/PgDn: Pagina"
     safe_addstr(stdscr, h - 1, 0, controls_bot[:w - 1], curses.color_pair(9) | curses.A_DIM)
 
     stdscr.refresh()
@@ -301,18 +372,24 @@ def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status):
 # ── Main ─────────────────────────────────────────────────────────────────────
 def main(stdscr):
     curses.start_color()
-    curses.use_default_colors()
+    try:
+        curses.use_default_colors()
+        default_bg = -1
+    except curses.error:
+        # Windows curses no soporta use_default_colors; usar negro como fondo
+        default_bg = curses.COLOR_BLACK
+
     curses.curs_set(0)
     stdscr.keypad(True)
-    stdscr.timeout(50)   # ms, para resize reactivo
+    stdscr.timeout(100)
 
-    curses.init_pair(1,  curses.COLOR_RED,     -1)   # ES
-    curses.init_pair(2,  curses.COLOR_GREEN,   -1)   # EN / OK
-    curses.init_pair(3,  curses.COLOR_YELLOW,  -1)   # DE / search
-    curses.init_pair(4,  curses.COLOR_CYAN,    -1)   # PL / search result
-    curses.init_pair(5,  curses.COLOR_MAGENTA, -1)   # PT
-    curses.init_pair(6,  curses.COLOR_RED,     -1)   # RU
-    curses.init_pair(7,  curses.COLOR_YELLOW,  -1)   # Info/warning
+    curses.init_pair(1,  curses.COLOR_RED,     default_bg)   # ES
+    curses.init_pair(2,  curses.COLOR_GREEN,   default_bg)   # EN / OK
+    curses.init_pair(3,  curses.COLOR_YELLOW,  default_bg)   # DE / search
+    curses.init_pair(4,  curses.COLOR_CYAN,    default_bg)   # PL / search result
+    curses.init_pair(5,  curses.COLOR_MAGENTA, default_bg)   # PT
+    curses.init_pair(6,  curses.COLOR_RED,     default_bg)   # RU
+    curses.init_pair(7,  curses.COLOR_YELLOW,  default_bg)   # Info/warning
     curses.init_pair(8,  curses.COLOR_BLACK,   curses.COLOR_CYAN)   # Header
     curses.init_pair(9,  curses.COLOR_WHITE,   curses.COLOR_BLUE)   # Footer/bar
     curses.init_pair(10, curses.COLOR_BLACK,   curses.COLOR_GREEN)  # Selected
@@ -321,89 +398,117 @@ def main(stdscr):
     if not all_channels:
         stdscr.erase()
         safe_addstr(stdscr, 2, 2, "ERROR: No se cargaron canales desde Acestream_Links.ods")
+        safe_addstr(stdscr, 3, 2, f"Directorio: {BASE_DIR}")
+        safe_addstr(stdscr, 5, 2, "Pulsa una tecla para salir...")
         stdscr.refresh()
+        stdscr.timeout(-1)
         stdscr.getch()
         return
 
-    channels    = all_channels[:]
-    selected    = 0
-    scroll      = 0
-    search      = ""
+    channels = all_channels[:]
+    selected = 0
+    scroll = 0
+    search = ""
     search_mode = False
-    status      = f"📺 {len(channels)} canales  —  ENTER para reproducir"
+    status = f"{len(channels)} canales  -  ENTER para reproducir"
 
     h, w = stdscr.getmaxyx()
-    ensure_docker(stdscr, h, w, h // 2)
+    ensure_engine(stdscr, h, w, h // 2)
 
     while True:
-        h, w   = stdscr.getmaxyx()
-        list_h = (h - 3) - 3  # list_bot - list_top
+        h, w = stdscr.getmaxyx()
+        list_h = h - 6
+        if list_h < 1:
+            list_h = 1
 
         draw_ui(stdscr, channels, selected, scroll, search, search_mode, status)
 
         key = stdscr.getch()
-        if key == -1:  # timeout, no key
+        if key == -1:
             continue
 
-        # ── Modo búsqueda ──
+        # ── Modo busqueda ──
         if search_mode:
             if key == 27:
                 search_mode = False
-                search      = ""
-                channels    = all_channels[:]
-                selected    = 0; scroll = 0
-                status      = f"📺 {len(all_channels)} canales"
+                search = ""
+                channels = all_channels[:]
+                selected = 0
+                scroll = 0
+                status = f"{len(all_channels)} canales"
             elif key in (curses.KEY_BACKSPACE, 127, 8):
-                search   = search[:-1]
-                channels = [c for c in all_channels if search.lower() in c["name"].lower()] if search else all_channels[:]
-                selected = 0; scroll = 0
-            elif key == 10:
+                search = search[:-1]
+                if search:
+                    channels = [c for c in all_channels
+                                if search.lower() in c["name"].lower()]
+                else:
+                    channels = all_channels[:]
+                selected = 0
+                scroll = 0
+            elif key in (10, 13):   # ENTER (10 en Linux, 13 en Windows)
                 search_mode = False
-                status = f"🔍 '{search}' — {len(channels)} resultado(s)"
+                status = f"'{search}' - {len(channels)} resultado(s)"
             elif 32 <= key <= 126:
-                search  += chr(key)
-                channels = [c for c in all_channels if search.lower() in c["name"].lower()]
-                selected = 0; scroll = 0
+                search += chr(key)
+                channels = [c for c in all_channels
+                            if search.lower() in c["name"].lower()]
+                selected = 0
+                scroll = 0
             continue
 
         # ── Modo normal ──
-        if key in (ord('q'), 27):
+        if key in (ord('q'), ord('Q')):
             break
+        elif key == 27:   # ESC limpia busqueda o sale
+            if search:
+                search = ""
+                channels = all_channels[:]
+                selected = 0
+                scroll = 0
+                status = f"{len(all_channels)} canales"
+            else:
+                break
         elif key == ord('/'):
             search_mode = True
-            search      = ""
+            search = ""
         elif key == curses.KEY_UP:
             if selected > 0:
                 selected -= 1
                 if selected < scroll:
                     scroll = selected
         elif key == curses.KEY_DOWN:
-            if selected < len(channels) - 1:
+            if channels and selected < len(channels) - 1:
                 selected += 1
                 if selected >= scroll + list_h:
                     scroll = selected - list_h + 1
         elif key == curses.KEY_PPAGE:
             selected = max(0, selected - list_h)
-            scroll   = max(0, scroll - list_h)
+            scroll = max(0, scroll - list_h)
         elif key == curses.KEY_NPAGE:
-            selected = min(len(channels) - 1, selected + list_h)
-            if selected >= scroll + list_h:
-                scroll = selected - list_h + 1
+            if channels:
+                selected = min(len(channels) - 1, selected + list_h)
+                if selected >= scroll + list_h:
+                    scroll = selected - list_h + 1
         elif key == curses.KEY_HOME:
-            selected = 0; scroll = 0
+            selected = 0
+            scroll = 0
         elif key == curses.KEY_END:
-            selected = len(channels) - 1
-            scroll   = max(0, selected - list_h + 1)
-        elif key == 10 and channels:   # ENTER
+            if channels:
+                selected = len(channels) - 1
+                scroll = max(0, selected - list_h + 1)
+        elif key in (10, 13) and channels:   # ENTER
             ch = channels[selected]
-            ensure_docker(stdscr, h, w, h // 2)
-            # Extraer content_id de la URL
-            url    = ch["url"]
-            cid    = url.split("id=")[-1].split("&")[0] if "id=" in url else ""
-            peers  = start_stream_and_open_vlc(cid, ch["name"], stdscr, h - 4, w)
-            p_str  = f"{peers} peers" if peers else "sin peers"
-            status = f"▶  {ch['name']} [{ch['lang']}] — {p_str}"
+            ensure_engine(stdscr, h, w, h // 2)
+            url = ch["url"]
+            cid = url.split("id=")[-1].split("&")[0] if "id=" in url else ""
+            peers = start_stream(cid, ch["name"], stdscr, h - 4, w)
+            p_str = f"{peers} peers" if peers else "sin peers"
+            status = f">  {ch['name']} [{ch['lang']}] - {p_str}"
         elif key == curses.KEY_RESIZE:
-            curses.resizeterm(*stdscr.getmaxyx())
+            try:
+                curses.resizeterm(*stdscr.getmaxyx())
+            except Exception:
+                pass
 
-curses.wrapper(main)
+if __name__ == "__main__":
+    curses.wrapper(main)
