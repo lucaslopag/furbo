@@ -212,34 +212,32 @@ def ensure_engine(stdscr, h, w, msg_y):
 # ── Iniciar stream y abrir reproductor ───────────────────────────────────────
 def start_stream(content_id, ch_name, stdscr, status_y, w):
     """
-    1) Llama a la API JSON para iniciar el stream sin bloquear
-    2) Espera a que haya peers usando el stat_url
-    3) Lanza el reproductor con el playback_url final
+    1) Lanza un hilo en segundo plano que pide el stream para despertar al motor
+    2) Espera a que haya peers sondendo /ace/stat/
+    3) Lanza el reproductor
     """
+    import threading
+
     spinner = ['|', '/', '-', '\\']
     spin_i = 0
 
     safe_addstr(stdscr, status_y, 2,
-                f"{spinner[0]} Iniciando stream: {ch_name[:w - 30]}...".ljust(w - 4),
+                f"{spinner[0]} Despertando motor: {ch_name[:w - 30]}...".ljust(w - 4),
                 curses.color_pair(7) | curses.A_BOLD)
     stdscr.refresh()
 
-    # Iniciar el stream en AceStream y obtener URLs de control
-    api_resp = ace_api(f"/ace/getstream?id={content_id}&format=json")
-    if not api_resp or not api_resp.get("response"):
-        safe_addstr(stdscr, status_y, 2,
-                    "! Error conectando a AceStream API".ljust(w - 4),
-                    curses.color_pair(1) | curses.A_BOLD)
-        stdscr.refresh()
-        time.sleep(2)
-        return 0
+    play_url = f"{ACE_API}/ace/getstream?id={content_id}"
 
-    play_url = api_resp["response"].get("playback_url")
-    stat_url_full = api_resp["response"].get("stat_url")
-    # Convertir URL absoluta a path para ace_api()
-    stat_path = stat_url_full.replace(ACE_API, "") if stat_url_full else f"/ace/stat/{content_id}"
-    if not play_url:
-        play_url = f"{ACE_API}/ace/getstream?id={content_id}"
+    # Hilo para forzar a AceStream a empezar a buscar (ignora la respuesta)
+    def trigger_engine():
+        try:
+            req = urllib.request.Request(play_url, headers={'User-Agent': 'VLC/3.0.0'})
+            urllib.request.urlopen(req, timeout=30)
+        except Exception:
+            pass
+
+    threading.Thread(target=trigger_engine, daemon=True).start()
+    time.sleep(1) # Darle un segundito al motor para reaccionar
 
     # Sondear peers
     peers = 0
@@ -247,11 +245,10 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
 
     for i in range(MAX_WAIT * 2):
         spin_i = (spin_i + 1) % len(spinner)
-        stat = ace_api(stat_path)
+        stat = ace_api(f"/ace/stat/{content_id}")
         if stat and stat.get("response"):
             peers = stat["response"].get("peers", 0)
             status = stat["response"].get("status", "")
-            # Si ya esta pre-buffering (prebuf) o descargando (dl) y tiene peers, avanzamos
             if peers > 0 and status in ("dl", "prebuf", "buf"):
                 break
         elapsed = i * 0.5
@@ -285,7 +282,6 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
                 vlc_exe = p
                 break
         try:
-            # Añadir timeout infinito de lectura para evitar que VLC se cierre si AceStream tarda un poco mas
             subprocess.Popen(
                 [vlc_exe, "--qt-minimal-view", "--meta-title", ch_name, "--network-caching=5000", play_url],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
