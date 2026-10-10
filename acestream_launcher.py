@@ -503,6 +503,7 @@ def main(stdscr):
             break
         elif key in (ord('n'), ord('N'), ord('+')):
             curses.flushinp()
+            stdscr.timeout(-1)  # Desactivar timeout temporalmente para getstr
             curses.echo()
             curses.curs_set(1)
             stdscr.erase()
@@ -538,6 +539,7 @@ def main(stdscr):
             
             stdscr.refresh()
             time.sleep(2)
+            stdscr.timeout(100)  # Restaurar timeout
             
         elif key == 27:   # ESC limpia busqueda o sale
             if search:
