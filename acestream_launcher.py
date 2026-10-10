@@ -22,9 +22,14 @@ def load_channels():
             parts = []
             for p in cell.getElementsByType(otext.P):
                 s = ""
-                for node in p.childNodes:
+                def extract(node):
+                    nonlocal s
                     if hasattr(node, 'data'):
                         s += node.data
+                    for child in node.childNodes:
+                        extract(child)
+                for node in p.childNodes:
+                    extract(node)
                 parts.append(s)
             return " ".join(parts).strip()
             
@@ -64,6 +69,9 @@ def load_channels():
                     channels.append({"name": name, "lang": lang, "url": url})
         return channels
     except Exception as e:
+        import traceback
+        with open("/tmp/acestream_error.log", "w") as f:
+            traceback.print_exc(file=f)
         return []
 
 # ── Colores por idioma ───────────────────────────────────────────────────────
