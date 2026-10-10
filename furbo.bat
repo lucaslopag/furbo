@@ -2,6 +2,9 @@
 chcp 65001 >nul
 title Furbo - AceStream TV
 
+:: Volver a la carpeta del script (necesario al elevar a Administrador)
+cd /d "%~dp0"
+
 :: Auto-actualizar desde GitHub (si hay conexion)
 git pull --quiet 2>nul
 
