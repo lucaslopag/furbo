@@ -80,7 +80,16 @@ echo [OK] Red antibloqueo instalada.
 :: 4. Instalar dependencias de Python
 echo.
 echo Instalando dependencias de Python...
-python -m ensurepip --upgrade >nul 2>&1
+
+:: Comprobar si pip existe, si no, bajarlo e instalarlo a la fuerza
+python -m pip --version >nul 2>&1
+if errorlevel 1 (
+    echo [!] Reparando gestor de paquetes de Python...
+    curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+    python get-pip.py >nul 2>&1
+    del get-pip.py >nul 2>&1
+)
+
 python -m pip install --upgrade pip >nul 2>&1
 python -m pip install -r requirements.txt windows-curses
 if errorlevel 1 (
