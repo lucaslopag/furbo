@@ -1,0 +1,19 @@
+# Entornos virtuales
+venv/
+.venv/
+
+# Compilados de Python
+__pycache__/
+*.pyc
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Paquetes y Releases
+Release/
+*.zip
+
+# Otros
+.DS_Store

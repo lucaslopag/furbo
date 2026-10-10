@@ -1,0 +1,2 @@
+# Dependencias de Python necesarias para Furbo
+odfpy==1.4.1
