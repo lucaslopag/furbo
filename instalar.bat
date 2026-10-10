@@ -13,6 +13,7 @@ if %errorlevel% neq 0 (
     echo [!] Python no esta instalado. Instalando automaticamente...
     echo.
     winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+    python --version >nul 2>&1
     if %errorlevel% neq 0 (
         echo [!] No se pudo instalar Python automaticamente.
         echo     Descargalo manualmente desde: https://www.python.org/downloads/
@@ -33,6 +34,7 @@ git --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [!] Git no esta instalado. Instalando automaticamente...
     winget install Git.Git --accept-package-agreements --accept-source-agreements
+    git --version >nul 2>&1
     if %errorlevel% neq 0 (
         echo [!] No se pudo instalar Git automaticamente.
         echo     Descargalo manualmente desde: https://git-scm.com/download/win

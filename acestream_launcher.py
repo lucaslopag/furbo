@@ -212,9 +212,9 @@ def ensure_engine(stdscr, h, w, msg_y):
 # ── Iniciar stream y abrir reproductor ───────────────────────────────────────
 def start_stream(content_id, ch_name, stdscr, status_y, w):
     """
-    1) Llama a la API para iniciar el stream
-    2) Espera a que haya peers (hasta 20s)
-    3) Lanza el reproductor con la URL de reproducción
+    1) Llama a la API JSON para iniciar el stream sin bloquear
+    2) Espera a que haya peers usando el stat_url
+    3) Lanza el reproductor con el playback_url final
     """
     spinner = ['|', '/', '-', '\\']
     spin_i = 0
@@ -224,29 +224,46 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
                 curses.color_pair(7) | curses.A_BOLD)
     stdscr.refresh()
 
-    play_url = f"{ACE_API}/ace/getstream?id={content_id}"
+    # Iniciar el stream en AceStream y obtener URLs de control
+    api_resp = ace_api(f"/ace/getstream?id={content_id}&format=json")
+    if not api_resp or not api_resp.get("response"):
+        safe_addstr(stdscr, status_y, 2,
+                    "! Error conectando a AceStream API".ljust(w - 4),
+                    curses.color_pair(1) | curses.A_BOLD)
+        stdscr.refresh()
+        time.sleep(2)
+        return 0
+
+    play_url = api_resp["response"].get("playback_url")
+    stat_url_full = api_resp["response"].get("stat_url")
+    # Convertir URL absoluta a path para ace_api()
+    stat_path = stat_url_full.replace(ACE_API, "") if stat_url_full else f"/ace/stat/{content_id}"
+    if not play_url:
+        play_url = f"{ACE_API}/ace/getstream?id={content_id}"
 
     # Sondear peers
     peers = 0
-    MAX_WAIT = 20
+    MAX_WAIT = 30  # Esperar hasta 30 segs
 
     for i in range(MAX_WAIT * 2):
         spin_i = (spin_i + 1) % len(spinner)
-        stat = ace_api(f"/ace/stat/{content_id}")
-        if stat and stat.get("result"):
-            peers = stat["result"].get("peers", 0)
+        stat = ace_api(stat_path)
+        if stat and stat.get("response"):
+            peers = stat["response"].get("peers", 0)
+            status = stat["response"].get("status", "")
+            # Si ya esta pre-buffering (prebuf) o descargando (dl) y tiene peers, avanzamos
+            if peers > 0 and status in ("dl", "prebuf", "buf"):
+                break
         elapsed = i * 0.5
-        msg = f"{spinner[spin_i]} Buscando peers... {peers} peers | {elapsed:.0f}s"
+        msg = f"{spinner[spin_i]} Conectando a la red... {peers} peers | {elapsed:.0f}s"
         safe_addstr(stdscr, status_y, 2, msg.ljust(w - 4),
                     curses.color_pair(3) | curses.A_BOLD)
         stdscr.refresh()
-        if peers > 0:
-            break
         time.sleep(0.5)
 
     if peers == 0:
         safe_addstr(stdscr, status_y, 2,
-                    "! Sin peers - abriendo reproductor igualmente (puede tardar)".ljust(w - 4),
+                    "! Sin peers - abriendo reproductor igualmente (puede fallar)".ljust(w - 4),
                     curses.color_pair(7))
     else:
         player_name = "VLC" if IS_WINDOWS else "mpv"
@@ -268,8 +285,9 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
                 vlc_exe = p
                 break
         try:
+            # Añadir timeout infinito de lectura para evitar que VLC se cierre si AceStream tarda un poco mas
             subprocess.Popen(
-                [vlc_exe, "--qt-minimal-view", "--meta-title", ch_name, play_url],
+                [vlc_exe, "--qt-minimal-view", "--meta-title", ch_name, "--network-caching=5000", play_url],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
         except FileNotFoundError:
