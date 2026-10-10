@@ -43,12 +43,30 @@ def load_channels():
             return " ".join(parts).strip()
 
         ods_path = os.path.join(BASE_DIR, "Acestream_Links.ods")
+        txt_path = os.path.join(BASE_DIR, "mis_canales.txt")
+
+        channels = []
+
+        # Cargar de mis_canales.txt si existe
+        if os.path.exists(txt_path):
+            with open(txt_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip() or line.startswith("#"):
+                        continue
+                    parts = [p.strip() for p in line.split(",")]
+                    if len(parts) >= 3:
+                        name = parts[0]
+                        lang = parts[1]
+                        raw_url = parts[2]
+                        
+                        cid = raw_url.replace("acestream://", "")
+                        url = f"http://127.0.0.1:6878/ace/getstream?id={cid}"
+                        channels.append({"name": name, "lang": lang, "url": url})
 
         if not os.path.exists(ods_path):
-            return []
+            return channels
 
         doc = od.load(ods_path)
-        channels = []
         for sheet in doc.spreadsheet.getElementsByType(ot.Table):
             for i, row in enumerate(sheet.getElementsByType(ot.TableRow)):
                 if i == 0:
@@ -473,6 +491,43 @@ def main(stdscr):
         # ── Modo normal ──
         if key in (ord('q'), ord('Q')):
             break
+        elif key in (ord('n'), ord('N'), ord('+')):
+            curses.echo()
+            curses.curs_set(1)
+            stdscr.erase()
+            safe_addstr(stdscr, 2, 2, "=== AÑADIR NUEVO CANAL ===", curses.color_pair(8) | curses.A_BOLD)
+            
+            safe_addstr(stdscr, 4, 2, "Nombre del canal: ")
+            stdscr.refresh()
+            new_name = stdscr.getstr(4, 20, 50).decode('utf-8', errors='ignore').strip()
+            
+            safe_addstr(stdscr, 5, 2, "Idioma (ej. ES, EN): ")
+            stdscr.refresh()
+            new_lang = stdscr.getstr(5, 23, 10).decode('utf-8', errors='ignore').strip().upper()
+            if not new_lang: new_lang = "ES"
+
+            safe_addstr(stdscr, 6, 2, "ID de AceStream: ")
+            stdscr.refresh()
+            new_url = stdscr.getstr(6, 19, 100).decode('utf-8', errors='ignore').strip()
+
+            curses.noecho()
+            curses.curs_set(0)
+
+            if new_name and new_url:
+                txt_path = os.path.join(BASE_DIR, "mis_canales.txt")
+                with open(txt_path, "a", encoding="utf-8") as f:
+                    f.write(f"{new_name},{new_lang},{new_url}\n")
+                safe_addstr(stdscr, 8, 2, "[OK] Canal añadido correctamente a mis_canales.txt!", curses.color_pair(2) | curses.A_BOLD)
+                # Recargar canales
+                all_channels = load_channels()
+                channels = all_channels[:]
+                status = f"{len(all_channels)} canales actualizados"
+            else:
+                safe_addstr(stdscr, 8, 2, "[!] Cancelado: Faltan datos.", curses.color_pair(1) | curses.A_BOLD)
+            
+            stdscr.refresh()
+            time.sleep(2)
+            
         elif key == 27:   # ESC limpia busqueda o sale
             if search:
                 search = ""
