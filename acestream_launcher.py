@@ -116,7 +116,21 @@ def ensure_docker(stdscr, h, w, msg_y):
     safe_addstr(stdscr, msg_y, 2, "⏳ Verificando Proxy Tor y Docker AceStream...".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
     stdscr.refresh()
     
-    # 1. Tor Proxy
+    import os
+    if os.name == 'nt':
+        safe_addstr(stdscr, msg_y, 2, "💻 Modo Windows: Asegúrate de tener AceStream Engine abierto en la bandeja.".ljust(w-4), curses.color_pair(2) | curses.A_BOLD)
+        stdscr.refresh()
+        time.sleep(2)
+        # Esperar a que el motor de Windows esté listo en el puerto 6878
+        for _ in range(5):
+            if ace_api("/webui/api/service?method=get_version"):
+                break
+            safe_addstr(stdscr, msg_y, 2, f"⏳ Buscando AceStream Engine en Windows{'.'*(_ % 4)}  ".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
+            stdscr.refresh()
+            time.sleep(1)
+        return
+
+    # 1. Tor Proxy (Linux)
     res_tor = subprocess.run(["sudo", "-S", "docker", "inspect", "-f", "{{.State.Running}}", "tor-proxy"], input="s\n", capture_output=True, text=True)
     if res_tor.stdout.strip() != "true":
         safe_addstr(stdscr, msg_y, 2, "🚀 Arrancando Proxy antibloqueo (Tor)...".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
@@ -124,10 +138,10 @@ def ensure_docker(stdscr, h, w, msg_y):
         subprocess.run(["sudo", "-S", "docker", "run", "-d", "--name", "tor-proxy", "--network", "host", "--restart", "unless-stopped", "dockage/tor-privoxy:latest"], input="s\n", capture_output=True, text=True)
         time.sleep(3) # Darle unos segundos a Tor para conectar a los nodos
 
-    # 2. AceStream
+    # 2. AceStream (Linux)
     res_ace = subprocess.run(["sudo", "-S", "docker", "inspect", "-f", "{{.State.Running}}", "acestream"], input="s\n", capture_output=True, text=True)
     if res_ace.stdout.strip() != "true":
-        safe_addstr(stdscr, msg_y, 2, "🚀 Arrancando motor AceStream...".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
+        safe_addstr(stdscr, msg_y, 2, "🚀 Arrancando motor AceStream (Docker)...".ljust(w-4), curses.color_pair(7) | curses.A_BOLD)
         stdscr.refresh()
         subprocess.run(
             ["sudo", "-S", "docker", "run", "-d",
@@ -191,13 +205,29 @@ def start_stream_and_open_vlc(content_id, ch_name, stdscr, status_y, w):
     stdscr.refresh()
     time.sleep(0.5)
 
-    subprocess.Popen(
-        ["mpv", "--quiet", "--no-terminal", "--force-window=immediate", 
-         "--cache=yes", "--demuxer-max-bytes=1000M", "--demuxer-max-back-bytes=200M",
-         "--hwdec=auto", "--vo=gpu", "--profile=gpu-hq", "--deinterlace=auto", 
-         "--title=" + ch_name, play_url],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    )
+    import os
+    if os.name == 'nt':
+        # En Windows probar las rutas típicas de VLC
+        vlc_paths = [
+            r"C:\Program Files\VideoLAN\VLC\vlc.exe",
+            r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
+        ]
+        vlc_exe = "vlc"
+        for p in vlc_paths:
+            if os.path.exists(p):
+                vlc_exe = p
+                break
+        subprocess.Popen([vlc_exe, "--qt-minimal-view", "--meta-title", ch_name, play_url],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        # En Linux seguimos usando el poderoso mpv
+        subprocess.Popen(
+            ["mpv", "--quiet", "--no-terminal", "--force-window=immediate", 
+             "--cache=yes", "--demuxer-max-bytes=1000M", "--demuxer-max-back-bytes=200M",
+             "--hwdec=auto", "--vo=gpu", "--profile=gpu-hq", "--deinterlace=auto", 
+             "--title=" + ch_name, play_url],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
     return peers
 
 # ── UI ───────────────────────────────────────────────────────────────────────
