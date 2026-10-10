@@ -26,6 +26,8 @@ def load_channels():
                     if hasattr(node, 'data'):
                         s += node.data
                 parts.append(s)
+            return " ".join(parts).strip()
+            
         import sys
         
         if getattr(sys, 'frozen', False):
