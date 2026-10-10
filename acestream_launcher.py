@@ -332,8 +332,8 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
         )
     return peers
 
-    # ── UI ───────────────────────────────────────────────────────────────────────
-def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status, channel_status_cache):
+# ── UI ───────────────────────────────────────────────────────────────────────
+def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status):
     h, w = stdscr.getmaxyx()
     if h < 8 or w < 40:
         stdscr.erase()
@@ -345,7 +345,7 @@ def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status, cha
     # ── Cabecera ──
     title = " ACESTREAM LAUNCHER "
     safe_addstr(stdscr, 0, 0, title.center(w - 1), curses.color_pair(8) | curses.A_BOLD)
-    controls = " Flechas: Mover | ENTER: Reproducir | +: Añadir | /: Buscar | q: Salir "
+    controls = " Flechas: Mover | ENTER: Reproducir | /: Buscar | q: Salir "
     safe_addstr(stdscr, 1, 0, controls.center(w - 1), curses.color_pair(9))
 
     # ── Separador ──
@@ -372,38 +372,20 @@ def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status, cha
         ch = channels[idx]
         is_sel = (idx == selected)
         lang = ch["lang"]
-        
-        cid = ch["url"].split("id=")[-1].split("&")[0] if "id=" in ch["url"] else ""
-        c_status = channel_status_cache.get(cid, "unknown")
-        
-        # Colores de estado
-        if c_status == "online":
-            status_col = curses.color_pair(2) | curses.A_BOLD # Verde
-            status_icon = "[ON] "
-        elif c_status == "offline":
-            status_col = curses.color_pair(1) | curses.A_BOLD # Rojo
-            status_icon = "[OFF]"
-        elif c_status == "checking":
-            status_col = curses.color_pair(3) # Amarillo
-            status_icon = "[...] "
-        else:
-            status_col = curses.color_pair(0) # Normal
-            status_icon = "      "
-
+        col = LANG_COLORS.get(lang, 7)
         lang_tag = f"[{lang}]"
-        name_w = w - len(lang_tag) - len(status_icon) - 7
+        name_w = w - len(lang_tag) - 5
         if name_w < 1:
             name_w = 1
         name = ch["name"][:name_w].ljust(name_w)
 
         if is_sel:
-            line = f" > {status_icon}{name} {lang_tag} "
+            line = f" > {name} {lang_tag} "
             safe_addstr(stdscr, y, 0, line[:w - 1].ljust(w - 1),
                         curses.color_pair(10) | curses.A_BOLD)
         else:
-            safe_addstr(stdscr, y, 0, f"   {status_icon}", status_col)
-            safe_addstr(stdscr, y, 3 + len(status_icon), f"{name} ", curses.color_pair(0))
-            safe_addstr(stdscr, y, 4 + len(status_icon) + len(name), lang_tag, curses.color_pair(LANG_COLORS.get(lang, 7)))
+            safe_addstr(stdscr, y, 0, f"   {name} ", curses.color_pair(0))
+            safe_addstr(stdscr, y, 4 + len(name), lang_tag, curses.color_pair(col))
 
     # ── Scrollbar visual ──
     if len(channels) > list_h and list_h > 0:
@@ -431,34 +413,33 @@ def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status, cha
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 def main(stdscr):
-    import threading
-
     curses.start_color()
     try:
         curses.use_default_colors()
         default_bg = -1
     except curses.error:
+        # Windows curses no soporta use_default_colors; usar negro como fondo
         default_bg = curses.COLOR_BLACK
 
     curses.curs_set(0)
     stdscr.keypad(True)
     stdscr.timeout(100)
 
-    curses.init_pair(1,  curses.COLOR_RED,     default_bg)   # ES / OFF
-    curses.init_pair(2,  curses.COLOR_GREEN,   default_bg)   # EN / ON
-    curses.init_pair(3,  curses.COLOR_YELLOW,  default_bg)   # DE / checking
-    curses.init_pair(4,  curses.COLOR_CYAN,    default_bg)   # PL
+    curses.init_pair(1,  curses.COLOR_RED,     default_bg)   # ES
+    curses.init_pair(2,  curses.COLOR_GREEN,   default_bg)   # EN / OK
+    curses.init_pair(3,  curses.COLOR_YELLOW,  default_bg)   # DE / search
+    curses.init_pair(4,  curses.COLOR_CYAN,    default_bg)   # PL / search result
     curses.init_pair(5,  curses.COLOR_MAGENTA, default_bg)   # PT
     curses.init_pair(6,  curses.COLOR_RED,     default_bg)   # RU
-    curses.init_pair(7,  curses.COLOR_YELLOW,  default_bg)   
-    curses.init_pair(8,  curses.COLOR_BLACK,   curses.COLOR_CYAN)   
-    curses.init_pair(9,  curses.COLOR_WHITE,   curses.COLOR_BLUE)   
-    curses.init_pair(10, curses.COLOR_BLACK,   curses.COLOR_GREEN)  
+    curses.init_pair(7,  curses.COLOR_YELLOW,  default_bg)   # Info/warning
+    curses.init_pair(8,  curses.COLOR_BLACK,   curses.COLOR_CYAN)   # Header
+    curses.init_pair(9,  curses.COLOR_WHITE,   curses.COLOR_BLUE)   # Footer/bar
+    curses.init_pair(10, curses.COLOR_BLACK,   curses.COLOR_GREEN)  # Selected
 
     all_channels = load_channels()
     if not all_channels:
         stdscr.erase()
-        safe_addstr(stdscr, 2, 2, "ERROR: No se cargaron canales")
+        safe_addstr(stdscr, 2, 2, "ERROR: No se cargaron canales desde Acestream_Links.ods")
         safe_addstr(stdscr, 3, 2, f"Directorio: {BASE_DIR}")
         safe_addstr(stdscr, 5, 2, "Pulsa una tecla para salir...")
         stdscr.refresh()
@@ -471,65 +452,7 @@ def main(stdscr):
     scroll = 0
     search = ""
     search_mode = False
-    status = f"{len(channels)} canales  -  Verificando en segundo plano..."
-    
-    channel_status_cache = {}
-    checker_active = True
-
-    def background_checker():
-        for ch in all_channels:
-            if not checker_active:
-                break
-                
-            cid = ch["url"].split("id=")[-1].split("&")[0] if "id=" in ch["url"] else ""
-            if not cid:
-                continue
-                
-            channel_status_cache[cid] = "checking"
-            
-            play_url = f"{ACE_API}/ace/getstream?id={cid}"
-            engine_ready = False
-            
-            def trigger():
-                nonlocal engine_ready
-                try:
-                    req = urllib.request.Request(play_url, headers={'User-Agent': 'VLC/3.0.0'})
-                    with urllib.request.urlopen(req, timeout=10) as r:
-                        engine_ready = True
-                except Exception:
-                    pass
-                    
-            t = threading.Thread(target=trigger, daemon=True)
-            t.start()
-            
-            peers = 0
-            for _ in range(20): # Hasta 10 segundos por canal
-                if not checker_active:
-                    break
-                stat = ace_api(f"/ace/stat/{cid}")
-                if stat and stat.get("response"):
-                    peers = stat["response"].get("peers", 0)
-                    st = stat["response"].get("status", "")
-                    if peers > 0 and st in ("dl", "prebuf", "buf"):
-                        break
-                if engine_ready:
-                    break
-                time.sleep(0.5)
-                
-            if not checker_active:
-                break
-                
-            if peers > 0 or engine_ready:
-                channel_status_cache[cid] = "online"
-            else:
-                channel_status_cache[cid] = "offline"
-                
-            # Detener el stream en AceStream para no saturar la red (solo si no estamos reproduciendo)
-            if checker_active:
-                ace_api("/webui/api/service?method=stop")
-
-    checker_thread = threading.Thread(target=background_checker, daemon=True)
-    checker_thread.start()
+    status = f"{len(channels)} canales  -  ENTER para reproducir"
 
     h, w = stdscr.getmaxyx()
     ensure_engine(stdscr, h, w, h // 2)
@@ -540,7 +463,7 @@ def main(stdscr):
         if list_h < 1:
             list_h = 1
 
-        draw_ui(stdscr, channels, selected, scroll, search, search_mode, status, channel_status_cache)
+        draw_ui(stdscr, channels, selected, scroll, search, search_mode, status)
 
         key = stdscr.getch()
         if key == -1:
@@ -656,7 +579,6 @@ def main(stdscr):
                 selected = len(channels) - 1
                 scroll = max(0, selected - list_h + 1)
         elif key in (10, 13) and channels:   # ENTER
-            checker_active = False  # Parar verificacion de fondo para no cortar el stream
             ch = channels[selected]
             ensure_engine(stdscr, h, w, h // 2)
             url = ch["url"]
