@@ -502,6 +502,7 @@ def main(stdscr):
         if key in (ord('q'), ord('Q')):
             break
         elif key in (ord('n'), ord('N'), ord('+')):
+            curses.flushinp()
             curses.echo()
             curses.curs_set(1)
             stdscr.erase()
