@@ -1,0 +1,8 @@
+# Categoria: DAZN
+# Canales comprobados y funcionando (5 online)
+
+DAZN 1, ES, acestream://d5b2c6b940cf3df5e8f9dc6f000f0ea23a10b151
+DAZN 1 BAR FHD, ES, acestream://1e7f5efc1913efaf7042a9b1a49d1f9adc5bc187
+DAZN 2, ES, acestream://350bb4d726e2dd4dc4b2b17b59da783fdb07c11b
+DAZN 3, ES, acestream://d1d9ec2361a6ac8edc0b2841866383768cc28df9
+DAZN 4, ES, acestream://7e90956539f4e1318a63f3960e4f75c7c7c5a3b8

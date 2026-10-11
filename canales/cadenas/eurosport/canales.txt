@@ -1,0 +1,4 @@
+# Categoria: EUROSPORT
+# Canales comprobados y funcionando (1 online)
+
+EUROSPORT 1, ES, acestream://62a5750be4d2218b1064f83afaac4770fd92350d

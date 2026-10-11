@@ -1,0 +1,447 @@
+{
+  "1RFEF": [],
+  "DAZN": [
+    {
+      "name": "DAZN 1",
+      "cid": "d5b2c6b940cf3df5e8f9dc6f000f0ea23a10b151",
+      "peers": 1,
+      "category": "DAZN"
+    },
+    {
+      "name": "DAZN 1 BAR FHD",
+      "cid": "1e7f5efc1913efaf7042a9b1a49d1f9adc5bc187",
+      "peers": 1,
+      "category": "DAZN"
+    },
+    {
+      "name": "DAZN 2",
+      "cid": "350bb4d726e2dd4dc4b2b17b59da783fdb07c11b",
+      "peers": 1,
+      "category": "DAZN"
+    },
+    {
+      "name": "DAZN 3",
+      "cid": "d1d9ec2361a6ac8edc0b2841866383768cc28df9",
+      "peers": 1,
+      "category": "DAZN"
+    },
+    {
+      "name": "DAZN 4",
+      "cid": "7e90956539f4e1318a63f3960e4f75c7c7c5a3b8",
+      "peers": 1,
+      "category": "DAZN"
+    }
+  ],
+  "DEPORTES": [
+    {
+      "name": "REAL MADRID TV HD",
+      "cid": "ac353757b626cedc6461d8eb73bfffa15fbb7be7",
+      "peers": 1,
+      "category": "DEPORTES"
+    },
+    {
+      "name": "SKY SPORTS ARENA",
+      "cid": "d317a003e8047da2c36a2a2bb2289578c9a3b79c",
+      "peers": 1,
+      "category": "DEPORTES"
+    }
+  ],
+  "EUROSPORT": [
+    {
+      "name": "EUROSPORT 1",
+      "cid": "62a5750be4d2218b1064f83afaac4770fd92350d",
+      "peers": 1,
+      "category": "EUROSPORT"
+    }
+  ],
+  "FORMULA 1": [
+    {
+      "name": "DAZN F1 FHD",
+      "cid": "6422e8bc34282871634c81947be093c04ad1bb29",
+      "peers": 1,
+      "category": "FORMULA 1"
+    },
+    {
+      "name": "DAZN F1 FHD",
+      "cid": "82b4f249788f93b8f9ce968803662d7cd4f1b8cc",
+      "peers": 1,
+      "category": "FORMULA 1"
+    },
+    {
+      "name": "DAZN F1 FHD",
+      "cid": "d5cf2dfa4fb4165ce58bf9db815088c28fec7711",
+      "peers": 1,
+      "category": "FORMULA 1"
+    },
+    {
+      "name": "DAZN F1 SD",
+      "cid": "4bc6f4cb6697c1defc981c0afe1a4c3a62284aee",
+      "peers": 1,
+      "category": "FORMULA 1"
+    },
+    {
+      "name": "DAZN F1",
+      "cid": "c21d60fa884b24f3cedcb1110b84ac2bcb0c2d19",
+      "peers": 1,
+      "category": "FORMULA 1"
+    },
+    {
+      "name": "DAZN F1",
+      "cid": "b04372b9543d763bd2dbd2a1842d9723fd080076",
+      "peers": 1,
+      "category": "FORMULA 1"
+    },
+    {
+      "name": "DAZN F1 HD",
+      "cid": "d65257bb934b73647374224fd62d836815804be2",
+      "peers": 1,
+      "category": "FORMULA 1"
+    }
+  ],
+  "FUTBOL INT": [
+    {
+      "name": "BT Sport 1 [UK]",
+      "cid": "fc5089d8e1519872fdf951779ccbca913acc9bce",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    },
+    {
+      "name": "BT Sport 1 [UK]",
+      "cid": "efc60cfe5e3a349baa02bcc49f6647c21a9c3c5b",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    },
+    {
+      "name": "ELEVEN DAZN 2",
+      "cid": "d08013df6e437a1fdf1e0c34f573fdf6a40c7fce",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    },
+    {
+      "name": "ESPN2 [US]",
+      "cid": "664eb5fe460b96941aed633959a845b185cd8394",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    },
+    {
+      "name": "ESPN 4 [BE]",
+      "cid": "5f9b19c57195cc28ab81e0ec8cad03b55118687a",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    },
+    {
+      "name": "ESPN [BE]",
+      "cid": "79f10c6c6168e42bfc606f3f7b9e5f3ca79dedab",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    },
+    {
+      "name": "ESPN HD [US]",
+      "cid": "4b4907de51ec11087d4bed5876f2a0c68264f442",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    },
+    {
+      "name": "PREMIER SPORTS 1",
+      "cid": "75a56863b6fe0407ad4305b4d7ee5643c3923565",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    },
+    {
+      "name": "ZIGGO SPORT 6",
+      "cid": "9231f38e71a85ad24b4c11a5e360992e30c916ed",
+      "peers": 1,
+      "category": "FUTBOL INT"
+    }
+  ],
+  "HYPERMOTION": [
+    {
+      "name": "HYPERMOTION SD",
+      "cid": "ee8ce83c44dc9b1e331672e2a0166e2830b00040",
+      "peers": 1,
+      "category": "HYPERMOTION"
+    },
+    {
+      "name": "HYPERMOTION",
+      "cid": "1f75d92098580443857caa95a719103cb83781b0",
+      "peers": 1,
+      "category": "HYPERMOTION"
+    },
+    {
+      "name": "HYPERMOTION",
+      "cid": "2c54a4def58f41fc0d2163450a63f12955b656aa",
+      "peers": 1,
+      "category": "HYPERMOTION"
+    }
+  ],
+  "LA LIGA": [
+    {
+      "name": "DAZN LA LIGA 1",
+      "cid": "385abcf801b787eec6ed6624908758bb165c0a55",
+      "peers": 1,
+      "category": "LA LIGA"
+    },
+    {
+      "name": "DAZN LA LIGA 1",
+      "cid": "9c588ac92554746c489bc553773d959f6d2dfd8e",
+      "peers": 1,
+      "category": "LA LIGA"
+    },
+    {
+      "name": "M+ LALIGA",
+      "cid": "3ace1463a7cad979c3a4002b245487e9982e9f1a",
+      "peers": 1,
+      "category": "LA LIGA"
+    },
+    {
+      "name": "M+ LALIGA",
+      "cid": "0febfb5cac3384f487d55c559bbfc877db2d0357",
+      "peers": 1,
+      "category": "LA LIGA"
+    },
+    {
+      "name": "M+ LALIGA",
+      "cid": "a64e02a6d914f098cbe1b724ff4f7aef83419a4a",
+      "peers": 1,
+      "category": "LA LIGA"
+    },
+    {
+      "name": "M+ LALIGA",
+      "cid": "3ce95bc9d6fc63676d828bb2cfc7a1f1854fd259",
+      "peers": 1,
+      "category": "LA LIGA"
+    },
+    {
+      "name": "M+ LALIGA",
+      "cid": "d3b11d6c18ad43df5cd42c1dafb4dd12d8f829e8",
+      "peers": 1,
+      "category": "LA LIGA"
+    },
+    {
+      "name": "M+ LALIGA",
+      "cid": "31c19ffb3472c289c5bbbbc174449c8ed0d19e38",
+      "peers": 1,
+      "category": "LA LIGA"
+    }
+  ],
+  "LIGA DE CAMPEONES": [
+    {
+      "name": "LIGA DE CAMPEONES 2 FHD",
+      "cid": "498c56bd00f535e440c392de5af992421a31355c",
+      "peers": 1,
+      "category": "LIGA DE CAMPEONES"
+    },
+    {
+      "name": "LIGA DE CAMPEONES 4",
+      "cid": "91ac4585368992720ec17ffa5b4389368c6dcac1",
+      "peers": 1,
+      "category": "LIGA DE CAMPEONES"
+    },
+    {
+      "name": "LIGA DE CAMPEONES 4",
+      "cid": "e9f4493d2d851f4636720f639113e05b4a21a74c",
+      "peers": 1,
+      "category": "LIGA DE CAMPEONES"
+    },
+    {
+      "name": "LIGA DE CAMPEONES 4",
+      "cid": "6fbab1d8d6bf93c4bc7552714aa3bb54ebf7b661",
+      "peers": 1,
+      "category": "LIGA DE CAMPEONES"
+    }
+  ],
+  "MOTOR": [
+    {
+      "name": "CANAL MOTOR",
+      "cid": "35e17cc84abc5e393b5acd688536a9681105f2d5",
+      "peers": 1,
+      "category": "MOTOR"
+    },
+    {
+      "name": "RALLY TV",
+      "cid": "64eb19dccf5e60f121a4c1f7c69489af6b1c9ca9",
+      "peers": 1,
+      "category": "MOTOR"
+    }
+  ],
+  "MOVISTAR": [
+    {
+      "name": "MOVISTAR ACCION",
+      "cid": "f3a6d058791f0818a3301f9d5eeb60cfb54d905d",
+      "peers": 1,
+      "category": "MOVISTAR"
+    },
+    {
+      "name": "MOVISTAR CINE ESPAÑOL FHD",
+      "cid": "f4e37b63fb042d90528585741a39851af543deca",
+      "peers": 1,
+      "category": "MOVISTAR"
+    },
+    {
+      "name": "MOVISTAR COMEDIA",
+      "cid": "e8cd9088fee41413df360e4539c9e7184a63ffcb",
+      "peers": 1,
+      "category": "MOVISTAR"
+    },
+    {
+      "name": "MOVISTAR DOCUMENTALES FHD",
+      "cid": "6317bdcbe852dce829e5c647cce4da04a7dcb7f5",
+      "peers": 1,
+      "category": "MOVISTAR"
+    },
+    {
+      "name": "MOVISTAR PLUS FHD",
+      "cid": "ed74406ccdb3c21941b919db6bffca7f1de015bb",
+      "peers": 1,
+      "category": "MOVISTAR"
+    },
+    {
+      "name": "MOVISTAR PLUS FHD",
+      "cid": "1ab443f5b4beb6d586f19e8b25b9f9646cf2ab78",
+      "peers": 1,
+      "category": "MOVISTAR"
+    },
+    {
+      "name": "ONETORO FHD",
+      "cid": "cd0188292b6b3876ff66c99bd3d25eab88b41079",
+      "peers": 1,
+      "category": "MOVISTAR"
+    }
+  ],
+  "MOVISTAR DEPORTES": [
+    {
+      "name": "MOVISTAR DEPORTES",
+      "cid": "b35b3eb8e22365bf3469efd6d1f3b82618a6e18a",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR DEPORTES",
+      "cid": "3b50a1dca0977e3761d016edd79314ab797f74f6",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR DEPORTES 2 FHD",
+      "cid": "edd06f11e1cef292a1d795e15207ef2f580e298c",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR DEPORTES 2",
+      "cid": "6b15368775693c33c49fab02e7900c1976a5da90",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR DEPORTES 5 HD",
+      "cid": "3230cdca852a10325222e3c546e499e31d547a90",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR DEPORTES 6 HD",
+      "cid": "8f982a0d6e3196c12d0034142b65008321150f7c",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR DEPORTES 7",
+      "cid": "2d549bbcd898b09c4b736e6e3e83e8e8c19fcbda",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR VAMOS",
+      "cid": "6b60251bc893c4e79fdfa37a1f5f6212e73ea6f9",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR VAMOS",
+      "cid": "26159ba451167e962f4f9236ab4c7626f7eb4e49",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR VAMOS",
+      "cid": "0cd11c1f51b84ebe9954496b3ef9b6aeccf7307c",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    },
+    {
+      "name": "MOVISTAR VAMOS",
+      "cid": "b46a524780cf0ac5e533491fe79389d6198acf2c",
+      "peers": 1,
+      "category": "MOVISTAR DEPORTES"
+    }
+  ],
+  "SPORT TV": [
+    {
+      "name": "beIN SPORTS HD 2 (TR)",
+      "cid": "48bee10b883f17c7186d60f1e8022dca0ba41a05",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "Canal de Tenis HD (ES)",
+      "cid": "039fae21c9e7e5214d3d898cba80863e37e623ac",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "CANAL+ Sport 4 (PL)",
+      "cid": "04448c3ca0b7518819491e468adbabc8a2551bd7",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "CANAL+ Sport (PL)",
+      "cid": "cc7b8c39f70aa342248d02c8ab55bafdb4116ed7",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "Eurosport 1 HD (RU)",
+      "cid": "1b0bc4d4dcd609d3c092712e721392b199f50a62",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "Eurosport (PL)",
+      "cid": "314eb626864faf52e01624361bd6906b5406127f",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "Extreme Sports (PL)",
+      "cid": "73ff07648e367efebd94636047b07625f664a082",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "Fast&Funbox HD (RU)",
+      "cid": "c811cde690d467a2e45d3c263c4f0960a3933d18",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "FightBox HD (RU)",
+      "cid": "49b734a5a3365674480089264be00ae28fabb640",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "FOX Sports 1 HD (US)",
+      "cid": "c9c062941fbecb16ce29437f346ea7177d720898",
+      "peers": 1,
+      "category": "SPORT TV"
+    },
+    {
+      "name": "FOX Sports 2 HD (US)",
+      "cid": "cba8d369eac629b577750edb90370cd1c5fb03b7",
+      "peers": 1,
+      "category": "SPORT TV"
+    }
+  ]
+}

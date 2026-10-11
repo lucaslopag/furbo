@@ -5,9 +5,5 @@
 # Nombre del Canal, Idioma, enlace_o_id_de_acestream
 #
 # Ejemplo:
-# Dazn La liga, ES, acestream://688e785893b50acc1d00cb37f15bfc42e72f5ae3
+# Mi Canal, ES, acestream://688e785893b50acc1d00cb37f15bfc42e72f5ae3
 # =====================================================================
-
-Liga Hypermotion 1, ES, acestream://2c54a4def58f41fc0d2163450a63f12955b656aa
-Liga Hypermotion 2, ES, acestream://e4cbd1a425120b1f44b523a55bd1a98c31cad9fe
-Liga Hypermotion 3, ES, acestream://ee8ce83c44dc9b1e331672e2a0166e2830b00040

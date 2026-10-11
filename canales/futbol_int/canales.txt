@@ -1,0 +1,12 @@
+# Categoria: FUTBOL INT
+# Canales comprobados y funcionando (9 online)
+
+BT Sport 1 [UK], ES, acestream://fc5089d8e1519872fdf951779ccbca913acc9bce
+BT Sport 1 [UK], ES, acestream://efc60cfe5e3a349baa02bcc49f6647c21a9c3c5b
+ELEVEN DAZN 2, ES, acestream://d08013df6e437a1fdf1e0c34f573fdf6a40c7fce
+ESPN2 [US], ES, acestream://664eb5fe460b96941aed633959a845b185cd8394
+ESPN 4 [BE], ES, acestream://5f9b19c57195cc28ab81e0ec8cad03b55118687a
+ESPN [BE], ES, acestream://79f10c6c6168e42bfc606f3f7b9e5f3ca79dedab
+ESPN HD [US], ES, acestream://4b4907de51ec11087d4bed5876f2a0c68264f442
+PREMIER SPORTS 1, ES, acestream://75a56863b6fe0407ad4305b4d7ee5643c3923565
+ZIGGO SPORT 6, ES, acestream://9231f38e71a85ad24b4c11a5e360992e30c916ed

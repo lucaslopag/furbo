@@ -1,0 +1,8 @@
+# Categoria: HYPERMOTION
+# Canales comprobados y funcionando
+
+Liga Hypermotion 1, ES, acestream://2c54a4def58f41fc0d2163450a63f12955b656aa
+Liga Hypermotion 2, ES, acestream://e4cbd1a425120b1f44b523a55bd1a98c31cad9fe
+Liga Hypermotion 3, ES, acestream://ee8ce83c44dc9b1e331672e2a0166e2830b00040
+HYPERMOTION (Markel 1), ES, acestream://1f75d92098580443857caa95a719103cb83781b0
+HYPERMOTION SD (Markel 2), ES, acestream://ee8ce83c44dc9b1e331672e2a0166e2830b00040

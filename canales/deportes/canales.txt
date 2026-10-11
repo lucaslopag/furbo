@@ -1,0 +1,5 @@
+# Categoria: DEPORTES
+# Canales comprobados y funcionando (2 online)
+
+REAL MADRID TV HD, ES, acestream://ac353757b626cedc6461d8eb73bfffa15fbb7be7
+SKY SPORTS ARENA, ES, acestream://d317a003e8047da2c36a2a2bb2289578c9a3b79c

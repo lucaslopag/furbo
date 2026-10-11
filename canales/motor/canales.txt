@@ -1,0 +1,5 @@
+# Categoria: MOTOR
+# Canales comprobados y funcionando (2 online)
+
+CANAL MOTOR, ES, acestream://35e17cc84abc5e393b5acd688536a9681105f2d5
+RALLY TV, ES, acestream://64eb19dccf5e60f121a4c1f7c69489af6b1c9ca9

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AceStream Launcher - Selecciona canal con flechas y lo abre en el reproductor
+AceStream Launcher - Navegación por Categorías/Carpetas y Canales
 Compatible con Linux y Windows.
 """
 import curses
@@ -22,95 +22,99 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 
 IS_WINDOWS = os.name == 'nt'
 
-# ── Carga canales desde el .ods ──────────────────────────────────────────────
-def load_channels():
-    try:
-        import odf.opendocument as od
-        import odf.table as ot
-        import odf.text as otext
+CAT_META = {
+    'la_liga': ('LA LIGA', 10),
+    'hypermotion': ('LA LIGA HYPERMOTION', 20),
+    'liga_de_campeones': ('LIGA DE CAMPEONES', 30),
+    '1rfef': ('1a RFEF', 40),
+    'formula_1': ('FORMULA 1', 50),
+    'motor': ('MOTOR', 60),
+    'futbol_int': ('FUTBOL INTERNACIONAL', 70),
+    'deportes': ('DEPORTES', 80),
+    'cadenas/dazn': ('CADENAS: DAZN', 90),
+    'cadenas/movistar': ('CADENAS: MOVISTAR+', 100),
+    'cadenas/movistar_deportes': ('CADENAS: M+ DEPORTES', 110),
+    'cadenas/eurosport': ('CADENAS: EUROSPORT', 120),
+    'cadenas/sport_tv': ('CADENAS: SPORT TV', 130),
+}
 
-        def cell_text(cell):
-            """Extrae todo el texto de una celda ODS, incluyendo hyperlinks."""
-            parts = []
-            for p in cell.getElementsByType(otext.P):
-                fragments = []
-                def extract(node):
-                    if hasattr(node, 'data'):
-                        fragments.append(node.data)
-                    for child in node.childNodes:
-                        extract(child)
-                for node in p.childNodes:
-                    extract(node)
-                parts.append("".join(fragments))
-            return " ".join(parts).strip()
-
-        ods_path = os.path.join(BASE_DIR, "Acestream_Links.ods")
-        if not os.path.exists(ods_path):
-            ods_path = os.path.join(ROOT_DIR, "Acestream_Links.ods")
-
-        channels = []
-
-        # Cargar canales manuales desde la raíz o backend (canales_manuales.txt o mis_canales.txt)
-        manual_files = [
-            os.path.join(ROOT_DIR, "canales_manuales.txt"),
-            os.path.join(ROOT_DIR, "mis_canales.txt"),
-            os.path.join(BASE_DIR, "canales_manuales.txt"),
-            os.path.join(BASE_DIR, "mis_canales.txt"),
-        ]
-        loaded_manual = set()
-        for txt_path in manual_files:
-            if os.path.exists(txt_path) and txt_path not in loaded_manual:
-                loaded_manual.add(txt_path)
-                with open(txt_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line_s = line.strip()
-                        if not line_s or line_s.startswith("#"):
+# ── Carga canales organizados por categorías/carpetas ─────────────────────────
+def load_categories():
+    categories = []
+    
+    # 1. Escanear carpetas de canales/
+    canales_dirs = [
+        os.path.join(ROOT_DIR, "canales"),
+        os.path.join(BASE_DIR, "canales")
+    ]
+    
+    seen_keys = set()
+    for c_dir in canales_dirs:
+        if os.path.exists(c_dir) and os.path.isdir(c_dir):
+            for root, _, files in os.walk(c_dir):
+                for f in sorted(files):
+                    if f.endswith(".txt"):
+                        rel = os.path.relpath(root, c_dir).replace('\\', '/')
+                        if rel in seen_keys:
                             continue
-                        parts = [p.strip() for p in line_s.split(",")]
+                        seen_keys.add(rel)
+                        
+                        fpath = os.path.join(root, f)
+                        chs = []
+                        with open(fpath, "r", encoding="utf-8") as fl:
+                            for line in fl:
+                                line = line.strip()
+                                if line and not line.startswith("#"):
+                                    parts = [p.strip() for p in line.split(",")]
+                                    if len(parts) >= 3:
+                                        cid = parts[2].replace("acestream://", "")
+                                        chs.append({
+                                            "name": parts[0],
+                                            "lang": parts[1],
+                                            "url": f"http://127.0.0.1:6878/ace/getstream?id={cid}",
+                                            "category": rel
+                                        })
+                        if chs:
+                            cat_name, order = CAT_META.get(rel, (rel.upper().replace("_", " "), 900))
+                            categories.append({
+                                "name": cat_name,
+                                "key": rel,
+                                "order": order,
+                                "channels": chs
+                            })
+
+    # 2. Canales manuales sueltos en raíz
+    manual_chs = []
+    manual_files = [
+        os.path.join(ROOT_DIR, "canales_manuales.txt"),
+        os.path.join(BASE_DIR, "canales_manuales.txt"),
+    ]
+    for mf in manual_files:
+        if os.path.exists(mf):
+            with open(mf, "r", encoding="utf-8") as fl:
+                for line in fl:
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        parts = [p.strip() for p in line.split(",")]
                         if len(parts) >= 3:
-                            name = parts[0]
-                            lang = parts[1]
-                            raw_url = parts[2]
-                            cid = raw_url.replace("acestream://", "")
-                            url = f"http://127.0.0.1:6878/ace/getstream?id={cid}"
-                            channels.append({"name": name, "lang": lang, "url": url})
+                            cid = parts[2].replace("acestream://", "")
+                            manual_chs.append({
+                                "name": parts[0],
+                                "lang": parts[1],
+                                "url": f"http://127.0.0.1:6878/ace/getstream?id={cid}",
+                                "category": "manuales"
+                            })
+            break
+    if manual_chs:
+        categories.append({
+            "name": "CANALES MANUALES",
+            "key": "manuales",
+            "order": 5,
+            "channels": manual_chs
+        })
 
-        if not os.path.exists(ods_path):
-            return channels
-
-        doc = od.load(ods_path)
-        for sheet in doc.spreadsheet.getElementsByType(ot.Table):
-            for i, row in enumerate(sheet.getElementsByType(ot.TableRow)):
-                if i == 0:
-                    continue
-                cols = [cell_text(c) for c in row.getElementsByType(ot.TableCell)]
-                while len(cols) < 6:
-                    cols.append("")
-                name = cols[0].strip()
-                lang = cols[1].strip()
-                url = ""
-                for c in cols:
-                    c = c.strip()
-                    if c.startswith("http://127.0.0.1:6878"):
-                        url = c
-                        break
-                    elif c.startswith("acestream://"):
-                        cid = c.replace("acestream://", "")
-                        url = f"http://127.0.0.1:6878/ace/getstream?id={cid}"
-                        break
-                if url and name:
-                    channels.append({"name": name, "lang": lang, "url": url})
-        return channels
-    except Exception:
-        # Escribir error a un log para poder depurar
-        import traceback
-        log_path = os.path.join(BASE_DIR, "acestream_error.log")
-        try:
-            with open(log_path, "w") as f:
-                traceback.print_exc(file=f)
-        except Exception:
-            pass
-        return []
+    categories.sort(key=lambda x: x["order"])
+    return categories
 
 # ── Colores por idioma ───────────────────────────────────────────────────────
 LANG_COLORS = {"ES": 1, "EN": 2, "DE": 3, "PL": 4, "PT": 5, "RU": 6}
@@ -157,7 +161,6 @@ def ensure_engine(stdscr, h, w, msg_y):
     stdscr.refresh()
 
     if IS_WINDOWS:
-        # En Windows, AceStream corre como app nativa (bandeja del sistema)
         safe_addstr(stdscr, msg_y, 2,
                     "Modo Windows: comprobando AceStream Engine...".ljust(w - 4),
                     curses.color_pair(2) | curses.A_BOLD)
@@ -165,7 +168,7 @@ def ensure_engine(stdscr, h, w, msg_y):
         for attempt in range(10):
             if ace_api("/webui/api/service?method=get_version"):
                 safe_addstr(stdscr, msg_y, 2,
-                            "Motor AceStream detectado".ljust(w - 4),
+                            "AceStream Engine conectado correctamente".ljust(w - 4),
                             curses.color_pair(2) | curses.A_BOLD)
                 stdscr.refresh()
                 time.sleep(0.5)
@@ -184,7 +187,6 @@ def ensure_engine(stdscr, h, w, msg_y):
         return
 
     # ── Linux: gestionar contenedores Docker ──
-    # 1. Tor Proxy (antibloqueo de ISP)
     res_tor = subprocess.run(
         ["sudo", "-S", "docker", "inspect", "-f", "{{.State.Running}}", "tor-proxy"],
         input="s\n", capture_output=True, text=True
@@ -203,7 +205,6 @@ def ensure_engine(stdscr, h, w, msg_y):
         )
         time.sleep(3)
 
-    # 2. Motor AceStream
     res_ace = subprocess.run(
         ["sudo", "-S", "docker", "inspect", "-f", "{{.State.Running}}", "acestream"],
         input="s\n", capture_output=True, text=True
@@ -241,11 +242,6 @@ def ensure_engine(stdscr, h, w, msg_y):
 
 # ── Iniciar stream y abrir reproductor ───────────────────────────────────────
 def start_stream(content_id, ch_name, stdscr, status_y, w):
-    """
-    1) Lanza un hilo en segundo plano que pide el stream para despertar al motor
-    2) Espera a que haya peers sondendo /ace/stat/
-    3) Lanza el reproductor
-    """
     import threading
 
     spinner = ['|', '/', '-', '\\']
@@ -257,26 +253,22 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
     stdscr.refresh()
 
     play_url = f"{ACE_API}/ace/getstream?id={content_id}"
-
     engine_ready = False
 
-    # Hilo para forzar a AceStream a empezar a buscar
     def trigger_engine():
         nonlocal engine_ready
         try:
             req = urllib.request.Request(play_url, headers={'User-Agent': 'VLC/3.0.0'})
-            # urlopen se bloquea hasta que AceStream termina el pre-buffering
             with urllib.request.urlopen(req, timeout=30) as r:
                 engine_ready = True
         except Exception:
             pass
 
     threading.Thread(target=trigger_engine, daemon=True).start()
-    time.sleep(1) # Darle un segundito al motor para reaccionar
+    time.sleep(1)
 
-    # Sondear peers
     peers = 0
-    MAX_WAIT = 30  # Esperar hasta 30 segs
+    MAX_WAIT = 25
 
     for i in range(MAX_WAIT * 2):
         spin_i = (spin_i + 1) % len(spinner)
@@ -287,7 +279,6 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
             if peers > 0 and status in ("dl", "prebuf", "buf"):
                 break
                 
-        # Si el hilo de urllib consiguio respuesta, el stream ya esta listo
         if engine_ready:
             break
             
@@ -300,7 +291,7 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
 
     if peers == 0:
         safe_addstr(stdscr, status_y, 2,
-                    "! Sin peers - abriendo reproductor igualmente (puede fallar)".ljust(w - 4),
+                    "! Sin peers - abriendo reproductor igualmente...".ljust(w - 4),
                     curses.color_pair(7))
     else:
         player_name = "VLC" if IS_WINDOWS else "mpv"
@@ -347,8 +338,8 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
         )
     return peers
 
-# ── UI ───────────────────────────────────────────────────────────────────────
-def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status):
+# ── Interfaz Curses ──────────────────────────────────────────────────────────
+def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, status):
     h, w = stdscr.getmaxyx()
     if h < 8 or w < 40:
         stdscr.erase()
@@ -358,21 +349,25 @@ def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status):
     stdscr.erase()
 
     # ── Cabecera ──
-    title = " ACESTREAM LAUNCHER "
+    title = f" FURBO - ACESTREAM TV "
     safe_addstr(stdscr, 0, 0, title.center(w - 1), curses.color_pair(8) | curses.A_BOLD)
-    controls = " Flechas: Mover | ENTER: Reproducir | /: Buscar | q: Salir "
-    safe_addstr(stdscr, 1, 0, controls.center(w - 1), curses.color_pair(9))
+    
+    if current_cat is None:
+        nav = " Selecciona una CARPETA/COMPETICION (ENTER: Entrar | /: Buscar canal | q: Salir) "
+    else:
+        nav = f" [CARPETA: {current_cat['name']}]  (BACKSPACE/ESC: Volver a carpetas | ENTER: Reproducir) "
+    safe_addstr(stdscr, 1, 0, nav.center(w - 1), curses.color_pair(9))
 
     # ── Separador ──
     safe_hline(stdscr, 2, 0, curses.ACS_HLINE, w - 1)
     if search_mode:
-        hint = f" >> {search}_ "
+        hint = f" >> Buscar canal: {search}_ "
         safe_addstr(stdscr, 2, 2, hint, curses.color_pair(3) | curses.A_BOLD)
     elif search:
-        hint = f" >> '{search}' - {len(channels)} resultado(s) "
+        hint = f" >> Filtrado: '{search}' ({len(items)} resultados) "
         safe_addstr(stdscr, 2, 2, hint, curses.color_pair(4))
 
-    # ── Lista de canales ──
+    # ── Lista principal ──
     list_top = 3
     list_bot = h - 3
     list_h = list_bot - list_top
@@ -382,30 +377,46 @@ def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status):
     for i in range(list_h):
         idx = scroll + i
         y = list_top + i
-        if idx >= len(channels):
+        if idx >= len(items):
             break
-        ch = channels[idx]
+        item = items[idx]
         is_sel = (idx == selected)
-        lang = ch["lang"]
-        col = LANG_COLORS.get(lang, 7)
-        lang_tag = f"[{lang}]"
-        name_w = w - len(lang_tag) - 5
-        if name_w < 1:
-            name_w = 1
-        name = ch["name"][:name_w].ljust(name_w)
 
-        if is_sel:
-            line = f" > {name} {lang_tag} "
-            safe_addstr(stdscr, y, 0, line[:w - 1].ljust(w - 1),
-                        curses.color_pair(10) | curses.A_BOLD)
+        if current_cat is None and not search:
+            # Vista de CARPETAS
+            cat_name = item["name"]
+            count = f"({len(item['channels'])} canales)"
+            name_w = w - len(count) - 8
+            if name_w < 1: name_w = 1
+            line_name = cat_name[:name_w].ljust(name_w)
+
+            if is_sel:
+                line = f" > [DIR]  {line_name} {count} "
+                safe_addstr(stdscr, y, 0, line[:w - 1].ljust(w - 1), curses.color_pair(10) | curses.A_BOLD)
+            else:
+                safe_addstr(stdscr, y, 0, f"   [DIR]  {line_name} ", curses.color_pair(0) | curses.A_BOLD)
+                safe_addstr(stdscr, y, 10 + len(line_name), count, curses.color_pair(4))
         else:
-            safe_addstr(stdscr, y, 0, f"   {name} ", curses.color_pair(0))
-            safe_addstr(stdscr, y, 4 + len(name), lang_tag, curses.color_pair(col))
+            # Vista de CANALES
+            ch = item
+            lang = ch.get("lang", "ES")
+            col = LANG_COLORS.get(lang, 7)
+            lang_tag = f"[{lang}]"
+            name_w = w - len(lang_tag) - 6
+            if name_w < 1: name_w = 1
+            name = ch["name"][:name_w].ljust(name_w)
 
-    # ── Scrollbar visual ──
-    if len(channels) > list_h and list_h > 0:
-        bar_h = max(1, list_h * list_h // len(channels))
-        bar_pos = int(scroll / max(1, len(channels) - list_h) * (list_h - bar_h))
+            if is_sel:
+                line = f" > {name} {lang_tag} "
+                safe_addstr(stdscr, y, 0, line[:w - 1].ljust(w - 1), curses.color_pair(10) | curses.A_BOLD)
+            else:
+                safe_addstr(stdscr, y, 0, f"   {name} ", curses.color_pair(0))
+                safe_addstr(stdscr, y, 4 + len(name), lang_tag, curses.color_pair(col))
+
+    # ── Scrollbar ──
+    if len(items) > list_h and list_h > 0:
+        bar_h = max(1, list_h * list_h // len(items))
+        bar_pos = int(scroll / max(1, len(items) - list_h) * (list_h - bar_h))
         for r in range(list_h):
             ch_char = curses.ACS_CKBOARD if bar_pos <= r < bar_pos + bar_h else ord(' ')
             try:
@@ -413,17 +424,11 @@ def draw_ui(stdscr, channels, selected, scroll, search, search_mode, status):
             except curses.error:
                 pass
 
-    # ── Separador inferior ──
+    # ── Separador inferior y status ──
     safe_hline(stdscr, h - 3, 0, curses.ACS_HLINE, w - 1)
-
-    # ── Barra de estado ──
-    safe_addstr(stdscr, h - 2, 0, f" {status}"[:w - 1].ljust(w - 1),
-                curses.color_pair(9))
-
-    # ── Controles ──
-    controls_bot = "  ESC: Limpiar busqueda | PgUp/PgDn: Pagina"
+    safe_addstr(stdscr, h - 2, 0, f" {status}"[:w - 1].ljust(w - 1), curses.color_pair(9))
+    controls_bot = "  ENTER: Seleccionar | ESC/Retroceso: Volver | /: Buscar canal | PgUp/PgDn: Pagina"
     safe_addstr(stdscr, h - 1, 0, controls_bot[:w - 1], curses.color_pair(9) | curses.A_DIM)
-
     stdscr.refresh()
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -433,7 +438,6 @@ def main(stdscr):
         curses.use_default_colors()
         default_bg = -1
     except curses.error:
-        # Windows curses no soporta use_default_colors; usar negro como fondo
         default_bg = curses.COLOR_BLACK
 
     curses.curs_set(0)
@@ -443,7 +447,7 @@ def main(stdscr):
     curses.init_pair(1,  curses.COLOR_RED,     default_bg)   # ES
     curses.init_pair(2,  curses.COLOR_GREEN,   default_bg)   # EN / OK
     curses.init_pair(3,  curses.COLOR_YELLOW,  default_bg)   # DE / search
-    curses.init_pair(4,  curses.COLOR_CYAN,    default_bg)   # PL / search result
+    curses.init_pair(4,  curses.COLOR_CYAN,    default_bg)   # PL / count
     curses.init_pair(5,  curses.COLOR_MAGENTA, default_bg)   # PT
     curses.init_pair(6,  curses.COLOR_RED,     default_bg)   # RU
     curses.init_pair(7,  curses.COLOR_YELLOW,  default_bg)   # Info/warning
@@ -451,23 +455,30 @@ def main(stdscr):
     curses.init_pair(9,  curses.COLOR_WHITE,   curses.COLOR_BLUE)   # Footer/bar
     curses.init_pair(10, curses.COLOR_BLACK,   curses.COLOR_GREEN)  # Selected
 
-    all_channels = load_channels()
-    if not all_channels:
+    categories = load_categories()
+    if not categories:
         stdscr.erase()
-        safe_addstr(stdscr, 2, 2, "ERROR: No se cargaron canales desde Acestream_Links.ods")
-        safe_addstr(stdscr, 3, 2, f"Directorio: {BASE_DIR}")
-        safe_addstr(stdscr, 5, 2, "Pulsa una tecla para salir...")
+        safe_addstr(stdscr, 2, 2, "ERROR: No se encontraron canales en la carpeta canales/")
+        safe_addstr(stdscr, 4, 2, "Pulsa una tecla para salir...")
         stdscr.refresh()
         stdscr.timeout(-1)
         stdscr.getch()
         return
 
-    channels = all_channels[:]
+    # Aplanar todos los canales para búsqueda global
+    all_channels_flat = []
+    for cat in categories:
+        all_channels_flat.extend(cat["channels"])
+
+    current_cat = None
+    items = categories[:]
     selected = 0
     scroll = 0
     search = ""
     search_mode = False
-    status = f"{len(channels)} canales  -  ENTER para reproducir"
+    
+    total_chs = len(all_channels_flat)
+    status = f"{len(categories)} carpetas ({total_chs} canales)  -  ENTER para abrir carpeta"
 
     h, w = stdscr.getmaxyx()
     ensure_engine(stdscr, h, w, h // 2)
@@ -478,37 +489,39 @@ def main(stdscr):
         if list_h < 1:
             list_h = 1
 
-        draw_ui(stdscr, channels, selected, scroll, search, search_mode, status)
+        draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, status)
 
         key = stdscr.getch()
         if key == -1:
             continue
 
-        # ── Modo busqueda ──
+        # ── Modo búsqueda global ──
         if search_mode:
-            if key == 27:
+            if key == 27: # ESC cancelar
                 search_mode = False
                 search = ""
-                channels = all_channels[:]
+                if current_cat is None:
+                    items = categories[:]
+                    status = f"{len(categories)} carpetas ({total_chs} canales)"
+                else:
+                    items = current_cat["channels"][:]
+                    status = f"{current_cat['name']} - {len(items)} canales"
                 selected = 0
                 scroll = 0
-                status = f"{len(all_channels)} canales"
             elif key in (curses.KEY_BACKSPACE, 127, 8):
                 search = search[:-1]
                 if search:
-                    channels = [c for c in all_channels
-                                if search.lower() in c["name"].lower()]
+                    items = [c for c in all_channels_flat if search.lower() in c["name"].lower()]
                 else:
-                    channels = all_channels[:]
+                    items = categories[:] if current_cat is None else current_cat["channels"][:]
                 selected = 0
                 scroll = 0
-            elif key in (10, 13):   # ENTER (10 en Linux, 13 en Windows)
+            elif key in (10, 13): # ENTER fija búsqueda
                 search_mode = False
-                status = f"'{search}' - {len(channels)} resultado(s)"
+                status = f"'{search}' - {len(items)} resultado(s)"
             elif 32 <= key <= 126:
                 search += chr(key)
-                channels = [c for c in all_channels
-                            if search.lower() in c["name"].lower()]
+                items = [c for c in all_channels_flat if search.lower() in c["name"].lower()]
                 selected = 0
                 scroll = 0
             continue
@@ -516,93 +529,67 @@ def main(stdscr):
         # ── Modo normal ──
         if key in (ord('q'), ord('Q')):
             break
-        elif key in (ord('n'), ord('N'), ord('+')):
-            curses.flushinp()
-            stdscr.timeout(-1)  # Desactivar timeout temporalmente para getstr
-            curses.echo()
-            curses.curs_set(1)
-            stdscr.erase()
-            safe_addstr(stdscr, 2, 2, "=== AÑADIR NUEVO CANAL ===", curses.color_pair(8) | curses.A_BOLD)
-            
-            safe_addstr(stdscr, 4, 2, "Nombre del canal: ")
-            stdscr.refresh()
-            new_name = stdscr.getstr(4, 20, 50).decode('utf-8', errors='ignore').strip()
-            
-            safe_addstr(stdscr, 5, 2, "Idioma (ej. ES, EN): ")
-            stdscr.refresh()
-            new_lang = stdscr.getstr(5, 23, 10).decode('utf-8', errors='ignore').strip().upper()
-            if not new_lang: new_lang = "ES"
 
-            safe_addstr(stdscr, 6, 2, "ID de AceStream: ")
-            stdscr.refresh()
-            new_url = stdscr.getstr(6, 19, 100).decode('utf-8', errors='ignore').strip()
-
-            curses.noecho()
-            curses.curs_set(0)
-
-            if new_name and new_url:
-                txt_path = os.path.join(ROOT_DIR, "canales_manuales.txt")
-                if not os.path.exists(os.path.dirname(txt_path)):
-                    txt_path = os.path.join(BASE_DIR, "canales_manuales.txt")
-                with open(txt_path, "a", encoding="utf-8") as f:
-                    f.write(f"{new_name},{new_lang},{new_url}\n")
-                safe_addstr(stdscr, 8, 2, "[OK] Canal añadido correctamente a canales_manuales.txt!", curses.color_pair(2) | curses.A_BOLD)
-                # Recargar canales
-                all_channels = load_channels()
-                channels = all_channels[:]
-                status = f"{len(all_channels)} canales actualizados"
-            else:
-                safe_addstr(stdscr, 8, 2, "[!] Cancelado: Faltan datos.", curses.color_pair(1) | curses.A_BOLD)
-            
-            stdscr.refresh()
-            time.sleep(2)
-            stdscr.timeout(100)  # Restaurar timeout
-            
-        elif key == 27:   # ESC limpia busqueda o sale
-            if search:
-                search = ""
-                channels = all_channels[:]
-                selected = 0
-                scroll = 0
-                status = f"{len(all_channels)} canales"
-            else:
-                break
         elif key == ord('/'):
             search_mode = True
             search = ""
+            current_cat = None # Buscar sobre todos los canales
+
+        elif key in (27, curses.KEY_BACKSPACE, 127, 8):
+            # Salir de carpeta o limpiar búsqueda
+            if search:
+                search = ""
+                items = categories[:] if current_cat is None else current_cat["channels"][:]
+                selected = 0
+                scroll = 0
+                status = f"{len(items)} elementos"
+            elif current_cat is not None:
+                current_cat = None
+                items = categories[:]
+                selected = 0
+                scroll = 0
+                status = f"{len(categories)} carpetas  -  ENTER para abrir"
+
         elif key == curses.KEY_UP:
             if selected > 0:
                 selected -= 1
                 if selected < scroll:
                     scroll = selected
+
         elif key == curses.KEY_DOWN:
-            if channels and selected < len(channels) - 1:
+            if items and selected < len(items) - 1:
                 selected += 1
                 if selected >= scroll + list_h:
                     scroll = selected - list_h + 1
+
         elif key == curses.KEY_PPAGE:
             selected = max(0, selected - list_h)
             scroll = max(0, scroll - list_h)
+
         elif key == curses.KEY_NPAGE:
-            if channels:
-                selected = min(len(channels) - 1, selected + list_h)
+            if items:
+                selected = min(len(items) - 1, selected + list_h)
                 if selected >= scroll + list_h:
                     scroll = selected - list_h + 1
-        elif key == curses.KEY_HOME:
-            selected = 0
-            scroll = 0
-        elif key == curses.KEY_END:
-            if channels:
-                selected = len(channels) - 1
-                scroll = max(0, selected - list_h + 1)
-        elif key in (10, 13) and channels:   # ENTER
-            ch = channels[selected]
-            ensure_engine(stdscr, h, w, h // 2)
-            url = ch["url"]
-            cid = url.split("id=")[-1].split("&")[0] if "id=" in url else ""
-            peers = start_stream(cid, ch["name"], stdscr, h - 4, w)
-            p_str = f"{peers} peers" if peers else "sin peers"
-            status = f">  {ch['name']} [{ch['lang']}] - {p_str}"
+
+        elif key in (10, 13) and items: # ENTER
+            if current_cat is None and not search:
+                # Entrar a la carpeta seleccionada
+                current_cat = items[selected]
+                items = current_cat["channels"][:]
+                selected = 0
+                scroll = 0
+                status = f"Carpeta: {current_cat['name']} ({len(items)} canales)  -  ENTER para reproducir"
+            else:
+                # Reproducir canal
+                ch = items[selected]
+                ensure_engine(stdscr, h, w, h // 2)
+                url = ch["url"]
+                cid = url.split("id=")[-1].split("&")[0] if "id=" in url else ""
+                peers = start_stream(cid, ch["name"], stdscr, h - 4, w)
+                p_str = f"{peers} peers" if peers else "sin peers"
+                status = f">  {ch['name']} [{ch['lang']}] - {p_str}"
+
         elif key == curses.KEY_RESIZE:
             try:
                 curses.resizeterm(*stdscr.getmaxyx())

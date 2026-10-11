@@ -1,0 +1,5 @@
+# Categoria: 1RFEF
+# Nota: Emiten únicamente en directo durante partidos/eventos oficiales.
+
+Canal 1 (1RFEF) (SOLO EVENTOS), ES, acestream://c1ee6e1e0ef5928d8261f855c417de21794f437d
+Canal 2 (1RFEF) (SOLO EVENTOS), ES, acestream://8677d339ecddd75165c0015025f598b6215974cf

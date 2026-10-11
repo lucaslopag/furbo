@@ -1,0 +1,10 @@
+# Categoria: FORMULA 1
+# Canales comprobados y funcionando (7 online)
+
+DAZN F1 FHD, ES, acestream://6422e8bc34282871634c81947be093c04ad1bb29
+DAZN F1 FHD, ES, acestream://82b4f249788f93b8f9ce968803662d7cd4f1b8cc
+DAZN F1 FHD, ES, acestream://d5cf2dfa4fb4165ce58bf9db815088c28fec7711
+DAZN F1 SD, ES, acestream://4bc6f4cb6697c1defc981c0afe1a4c3a62284aee
+DAZN F1, ES, acestream://c21d60fa884b24f3cedcb1110b84ac2bcb0c2d19
+DAZN F1, ES, acestream://b04372b9543d763bd2dbd2a1842d9723fd080076
+DAZN F1 HD, ES, acestream://d65257bb934b73647374224fd62d836815804be2
