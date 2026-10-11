@@ -1,11 +1,14 @@
 # Categoria: LA LIGA
-# Canales comprobados y funcionando (8 online)
+# Canales de LaLiga EA Sports verificados y sin nombres repetidos
 
-DAZN LA LIGA 1, ES, acestream://385abcf801b787eec6ed6624908758bb165c0a55
-DAZN LA LIGA 1, ES, acestream://9c588ac92554746c489bc553773d959f6d2dfd8e
-M+ LALIGA, ES, acestream://3ace1463a7cad979c3a4002b245487e9982e9f1a
-M+ LALIGA, ES, acestream://0febfb5cac3384f487d55c559bbfc877db2d0357
-M+ LALIGA, ES, acestream://a64e02a6d914f098cbe1b724ff4f7aef83419a4a
-M+ LALIGA, ES, acestream://3ce95bc9d6fc63676d828bb2cfc7a1f1854fd259
-M+ LALIGA, ES, acestream://d3b11d6c18ad43df5cd42c1dafb4dd12d8f829e8
-M+ LALIGA, ES, acestream://31c19ffb3472c289c5bbbbc174449c8ed0d19e38
+Movistar+ LaLiga 1, ES, acestream://3ace1463a7cad979c3a4002b245487e9982e9f1a
+Movistar+ LaLiga 2, ES, acestream://0febfb5cac3384f487d55c559bbfc877db2d0357
+Movistar+ LaLiga 3, ES, acestream://a64e02a6d914f098cbe1b724ff4f7aef83419a4a
+Movistar+ LaLiga 4, ES, acestream://3ce95bc9d6fc63676d828bb2cfc7a1f1854fd259
+Movistar+ LaLiga 5, ES, acestream://d3b11d6c18ad43df5cd42c1dafb4dd12d8f829e8
+Movistar+ LaLiga 6, ES, acestream://31c19ffb3472c289c5bbbbc174449c8ed0d19e38
+DAZN LaLiga 1, ES, acestream://385abcf801b787eec6ed6624908758bb165c0a55
+DAZN LaLiga 2, ES, acestream://9c588ac92554746c489bc553773d959f6d2dfd8e
+Movistar Plus+ (Partido LaLiga), ES, acestream://ed74406ccdb3c21941b919db6bffca7f1de015bb
+DAZN 1 Bar FHD (LaLiga Bares), ES, acestream://1e7f5efc1913efaf7042a9b1a49d1f9adc5bc187
+Movistar Vamos (Resumenes LaLiga), ES, acestream://6b60251bc893c4e79fdfa37a1f5f6212e73ea6f9
