@@ -1,59 +1,61 @@
-<div align="center">
-  <h1>Furbo - AceStream TV</h1>
-  <p>Lanzador de canales AceStream con interfaz de terminal.<br>Compatible con <b>Windows</b> y <b>Linux</b>.</p>
-</div>
+# ⚽ Furbo - Ver Canales y Fútbol en Windows
+
+Una aplicación súper sencilla para ver canales de televisión y eventos deportivos en tu ordenador con un solo clic.
 
 ---
 
-## Windows - Instalacion
+## 🚀 ¿Cómo se instala y usa? (Súper fácil)
 
-1. **Descarga el proyecto:** Haz clic en el boton verde **"Code"** > **"Download ZIP"** y descomprimelo. O bien:
-   ```cmd
-   git clone https://github.com/lucaslopag/furbo.git
-   cd furbo
-   ```
+Solo tienes que seguir estos 3 pasos:
 
-2. **Ejecuta el instalador** (solo la primera vez):
-   Haz doble clic en **`instalar.bat`**. Esto instalara automaticamente Python, Git, VLC y las dependencias necesarias.
-
-3. **Usa Furbo:**
-   - Abre **AceStream Engine** (el icono azul en la bandeja del sistema)
-   - Haz doble clic en **`furbo.bat`**
-   - Elige canal con las flechas y pulsa ENTER
-
-> **Actualizaciones automaticas:** Cada vez que abras `furbo.bat`, se descargaran automaticamente los ultimos cambios del repositorio (nuevos canales, mejoras, etc).
+### 1️⃣ Descargar el programa
+1. Haz clic arriba en el botón verde que dice **`Code`** y luego en **`Download ZIP`**.
+2. Descomprime la carpeta ZIP donde tú quieras (por ejemplo, en tu Escritorio).
 
 ---
 
-## Linux - Instalacion
-
-```bash
-git clone https://github.com/lucaslopag/furbo.git
-cd furbo
-chmod +x lanzar.sh install.sh
-./install.sh        # Instala Docker + mpv (solo la primera vez)
-./lanzar.sh         # Lanza Furbo
-```
+### 2️⃣ Instalar (Solo se hace la primera vez)
+1. Entra en la carpeta descomprimida.
+2. Haz **doble clic en `instalar.bat`**.
+3. Se abrirá una ventana negra que preparará todo de forma 100% automática (instala lo necesario y la protección antibloqueo de operadoras).
+4. Cuando termine y ponga que está completado, pulsa cualquier tecla para cerrarlo.
 
 ---
 
-## Actualizar la lista de canales
+### 3️⃣ ¡A disfrutar!
+1. Asegúrate de tener **AceStream** abierto en segundo plano (el iconito azul junto al reloj de Windows).
+2. Haz **doble clic en `furbo.bat`**.
+3. Elige el canal que quieras con las flechas del teclado y pulsa **ENTER**. ¡Se abrirá directamente en el reproductor de vídeo!
 
-Edita el archivo `Acestream_Links.ods` con LibreOffice o Excel. Formato: Nombre | Idioma | Enlace AceStream.
-
----
-
-## Controles
-
-| Tecla | Accion |
-|-------|--------|
-| Flechas | Mover por la lista |
-| ENTER | Reproducir canal |
-| / | Buscar canal |
-| ESC | Limpiar busqueda |
-| PgUp/PgDn | Pagina arriba/abajo |
-| q | Salir |
+> 💡 **Nota:** Cada vez que abras `furbo.bat`, buscará y descargará automáticamente las novedades y nuevos canales sin que tengas que hacer nada.
 
 ---
 
-*Disclaimer: Este proyecto es un lanzador que facilita la conexion a la red publica P2P de AceStream. No aloja, transmite ni distribuye contenido multimedia.*
+## 🎮 Controles sencillos
+
+| Tecla | ¿Qué hace? |
+| :--- | :--- |
+| **⬆️ / ⬇️ Flechas** | Moverte arriba y abajo por la lista de canales |
+| **ENTER** | Abrir y reproducir el canal seleccionado |
+| **/** | Buscar un canal por su nombre |
+| **ESC** | Borrar la búsqueda actual |
+| **+** | Añadir un canal nuevo al momento escribiendo su enlace |
+| **q** | Salir del programa |
+
+---
+
+## ➕ ¿Cómo añadir tus propios canales?
+
+Tienes dos formas sencillas de añadir canales:
+
+1. **Desde dentro del programa:** Pulsa la tecla **`+`**, escribe el nombre y pega el enlace o ID de AceStream.
+2. **Con el Bloc de Notas:** Abre el archivo **`canales_manuales.txt`** que está en esta carpeta, escribe el nombre, idioma y enlace separados por comas (por ejemplo: `Dazn La liga, ES, acestream://...`), guarda el archivo y listo.
+
+---
+
+## ❓ ¿Problemas comunes?
+
+- **"No se abre ningún canal o se queda cargando":**  
+  Asegúrate de que tienes AceStream abierto en la barra de tareas (el icono azul cerca del reloj). Si tu compañía de internet (Movistar, Orange, etc.) bloquea la señal, `instalar.bat` incluye la red antibloqueo de Cloudflare para solucionarlo.
+- **"Da error al abrir furbo.bat":**  
+  Vuelve a hacer doble clic en `instalar.bat` para verificar que todo se haya instalado correctamente.

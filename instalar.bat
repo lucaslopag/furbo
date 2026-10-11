@@ -1,6 +1,8 @@
 @echo off
 chcp 65001 >nul
 title Instalador de Furbo (AceStream TV)
+
+cd /d "%~dp0"
 echo.
 echo ============================================
 echo   INSTALADOR DE FURBO - AceStream TV
@@ -91,7 +93,7 @@ if errorlevel 1 (
 )
 
 python -m pip install --upgrade pip >nul 2>&1
-python -m pip install -r requirements.txt windows-curses
+python -m pip install -r backend\requirements.txt windows-curses
 if errorlevel 1 (
     echo [!] Error instalando dependencias.
     pause

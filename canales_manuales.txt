@@ -1,0 +1,11 @@
+# =====================================================================
+# CANALES MANUALES / PROPIOS (Furbo)
+# =====================================================================
+# Aqui puedes añadir canales pegando lineas con el siguiente formato:
+# Nombre del Canal, Idioma, enlace_o_id_de_acestream
+#
+# Ejemplo:
+# Dazn La liga, ES, acestream://688e785893b50acc1d00cb37f15bfc42e72f5ae3
+# =====================================================================
+
+Dazn La liga, ES, acestream://688e785893b50acc1d00cb37f15bfc42e72f5ae3

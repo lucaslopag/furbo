@@ -6,17 +6,22 @@ venv/
 __pycache__/
 *.pyc
 
-# PyInstaller
+# PyInstaller y compilacion
 build/
 dist/
 *.spec
-
-# Paquetes y Releases
 Release/
 
 # Logs
+*.log
 acestream_error.log
+backend/acestream_error.log
 
-# Otros
-.DS_Store
+# Archivos de desarrollo / scripts locales
+subir.sh
+contexto.md
 *.xlsx
+
+# Sistema
+.DS_Store
+Thumbs.db

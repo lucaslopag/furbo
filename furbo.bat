@@ -17,7 +17,7 @@ if "%updates%" neq "0" if "%updates%" neq "" (
 )
 
 :: Lanzar el programa
-python acestream_launcher.py
+python backend\acestream_launcher.py
 if errorlevel 1 (
     echo.
     echo [!] Error al ejecutar. Asegurate de haber ejecutado instalar.bat primero.

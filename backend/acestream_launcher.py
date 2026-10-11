@@ -18,6 +18,8 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+ROOT_DIR = os.path.dirname(BASE_DIR)
+
 IS_WINDOWS = os.name == 'nt'
 
 # ── Carga canales desde el .ods ──────────────────────────────────────────────
@@ -43,25 +45,35 @@ def load_channels():
             return " ".join(parts).strip()
 
         ods_path = os.path.join(BASE_DIR, "Acestream_Links.ods")
-        txt_path = os.path.join(BASE_DIR, "mis_canales.txt")
+        if not os.path.exists(ods_path):
+            ods_path = os.path.join(ROOT_DIR, "Acestream_Links.ods")
 
         channels = []
 
-        # Cargar de mis_canales.txt si existe
-        if os.path.exists(txt_path):
-            with open(txt_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    if not line.strip() or line.startswith("#"):
-                        continue
-                    parts = [p.strip() for p in line.split(",")]
-                    if len(parts) >= 3:
-                        name = parts[0]
-                        lang = parts[1]
-                        raw_url = parts[2]
-                        
-                        cid = raw_url.replace("acestream://", "")
-                        url = f"http://127.0.0.1:6878/ace/getstream?id={cid}"
-                        channels.append({"name": name, "lang": lang, "url": url})
+        # Cargar canales manuales desde la raíz o backend (canales_manuales.txt o mis_canales.txt)
+        manual_files = [
+            os.path.join(ROOT_DIR, "canales_manuales.txt"),
+            os.path.join(ROOT_DIR, "mis_canales.txt"),
+            os.path.join(BASE_DIR, "canales_manuales.txt"),
+            os.path.join(BASE_DIR, "mis_canales.txt"),
+        ]
+        loaded_manual = set()
+        for txt_path in manual_files:
+            if os.path.exists(txt_path) and txt_path not in loaded_manual:
+                loaded_manual.add(txt_path)
+                with open(txt_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line_s = line.strip()
+                        if not line_s or line_s.startswith("#"):
+                            continue
+                        parts = [p.strip() for p in line_s.split(",")]
+                        if len(parts) >= 3:
+                            name = parts[0]
+                            lang = parts[1]
+                            raw_url = parts[2]
+                            cid = raw_url.replace("acestream://", "")
+                            url = f"http://127.0.0.1:6878/ace/getstream?id={cid}"
+                            channels.append({"name": name, "lang": lang, "url": url})
 
         if not os.path.exists(ods_path):
             return channels
@@ -526,10 +538,12 @@ def main(stdscr):
             curses.curs_set(0)
 
             if new_name and new_url:
-                txt_path = os.path.join(BASE_DIR, "mis_canales.txt")
+                txt_path = os.path.join(ROOT_DIR, "canales_manuales.txt")
+                if not os.path.exists(os.path.dirname(txt_path)):
+                    txt_path = os.path.join(BASE_DIR, "canales_manuales.txt")
                 with open(txt_path, "a", encoding="utf-8") as f:
                     f.write(f"{new_name},{new_lang},{new_url}\n")
-                safe_addstr(stdscr, 8, 2, "[OK] Canal añadido correctamente a mis_canales.txt!", curses.color_pair(2) | curses.A_BOLD)
+                safe_addstr(stdscr, 8, 2, "[OK] Canal añadido correctamente a canales_manuales.txt!", curses.color_pair(2) | curses.A_BOLD)
                 # Recargar canales
                 all_channels = load_channels()
                 channels = all_channels[:]
