@@ -335,9 +335,12 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
     else:
         subprocess.Popen(
             ["mpv", "--quiet", "--no-terminal", "--force-window=immediate",
-             "--cache=yes", "--demuxer-max-bytes=1000M",
-             "--demuxer-max-back-bytes=200M",
-             "--hwdec=auto", "--vo=gpu", "--profile=gpu-hq",
+             "--cache=yes", "--cache-secs=30",
+             "--demuxer-readahead-secs=20",
+             "--demuxer-max-bytes=500M",
+             "--demuxer-max-back-bytes=100M",
+             "--demuxer-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5",
+             "--hwdec=auto", "--vo=gpu",
              "--deinterlace=auto",
              "--title=" + ch_name, play_url],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL

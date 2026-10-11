@@ -22,6 +22,10 @@ subir.sh
 contexto.md
 *.xlsx
 
+# Exclusivo de Linux (no subir a GitHub)
+*.sh
+docker-compose*.yml
+
 # Sistema
 .DS_Store
 Thumbs.db
