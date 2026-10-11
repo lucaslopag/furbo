@@ -26,6 +26,13 @@ contexto.md
 *.sh
 docker-compose*.yml
 
+# Copias de seguridad locales
+backup/
+backups/
+*.bak
+*.backup
+backup_*
+
 # Sistema
 .DS_Store
 Thumbs.db
