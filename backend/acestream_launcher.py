@@ -133,7 +133,7 @@ def load_categories(fav_set=None):
             categories.append({
                 "name": "HISTORIAL (ÚLTIMOS REPRODUCIDOS)",
                 "key": "historial",
-                "order": 1,
+                "order": 9200,
                 "channels": hist_chs
             })
     
@@ -226,7 +226,7 @@ def load_categories(fav_set=None):
         categories.append({
             "name": "CANALES MANUALES",
             "key": "manuales",
-            "order": 5,
+            "order": 9100,
             "channels": manual_chs
         })
 
