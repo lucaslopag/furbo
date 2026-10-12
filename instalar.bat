@@ -69,11 +69,10 @@ if errorlevel 1 (
     echo [!] No se pudo instalar WARP automaticamente.
     echo     Puedes bajarlo manualmente de https://1.1.1.1 para saltar los bloqueos.
     pause
-) else (
     echo [*] Configurando conexion VPN antibloqueo...
     warp-cli registration new >nul 2>&1
-    warp-cli connect >nul 2>&1
-    echo [OK] Red antibloqueo lista!
+    warp-cli disconnect >nul 2>&1
+    echo [OK] Red antibloqueo lista (se conectara solo al abrir Furbo).
 )
 
 :warp_ok

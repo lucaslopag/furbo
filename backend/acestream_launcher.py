@@ -14,6 +14,53 @@ import sys
 import urllib.request
 import urllib.error
 import json
+import atexit
+import signal
+
+# ── Gestión Automática de VPN Antibloqueo (Cloudflare WARP) ─────────────────
+WARP_PATHS = [
+    "warp-cli",
+    r"C:\Program Files\Cloudflare\Cloudflare WARP\warp-cli.exe",
+    r"C:\Program Files (x86)\Cloudflare\Cloudflare WARP\warp-cli.exe",
+]
+
+def get_warp_bin():
+    for p in WARP_PATHS:
+        if os.path.isabs(p) and os.path.isfile(p):
+            return p
+    import shutil
+    found = shutil.which("warp-cli")
+    return found or "warp-cli"
+
+_vpn_connected = False
+
+def connect_vpn():
+    """Activa la VPN solo mientras Furbo esté abierto para ver el fútbol sin bloqueos."""
+    global _vpn_connected
+    try:
+        bin_path = get_warp_bin()
+        subprocess.run([bin_path, "connect"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3)
+        _vpn_connected = True
+    except Exception:
+        pass
+
+def disconnect_vpn():
+    """Apaga la VPN automáticamente al cerrar Furbo para restaurar la conexión normal."""
+    global _vpn_connected
+    try:
+        bin_path = get_warp_bin()
+        subprocess.run([bin_path, "disconnect"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3)
+        _vpn_connected = False
+    except Exception:
+        pass
+    if not IS_WINDOWS:
+        try:
+            subprocess.run(["docker", "stop", "tor-proxy"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+        except Exception:
+            pass
+
+# Registrar apagado garantizado al salir del proceso
+atexit.register(disconnect_vpn)
 
 # ── Configurar codificación UTF-8 en Windows ────────────────────────────────
 if sys.platform.startswith('win'):
@@ -697,6 +744,9 @@ def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, s
     title = " ★ TEBAS CABRON TOMA SOLUCION ★ "
     safe_addstr(stdscr, 0, 0, title.center(w - 1), curses.color_pair(8) | curses.A_BOLD)
 
+    # Indicador de VPN activa (solo encendida mientras se usa la app)
+    safe_addstr(stdscr, 0, 0, " [VPN: ● ON] ", curses.color_pair(12) | curses.A_BOLD)
+
     # Widget de estado de AceStream Engine en tiempo real (Item 11)
     if engine_online:
         engine_str = " [ACE: ● ON] "
@@ -1116,10 +1166,26 @@ def main(stdscr):
             except Exception:
                 pass
 
+def _handle_exit_signal(signum, frame):
+    disconnect_vpn()
+    sys.exit(0)
+
 if __name__ == "__main__":
     try:
+        signal.signal(signal.SIGINT, _handle_exit_signal)
+        signal.signal(signal.SIGTERM, _handle_exit_signal)
+        if hasattr(signal, 'SIGBREAK'):
+            signal.signal(signal.SIGBREAK, _handle_exit_signal)
+    except Exception:
+        pass
+
+    try:
+        connect_vpn()
         curses.wrapper(main)
     except KeyboardInterrupt:
-        sys.exit(0)
+        pass
     except Exception:
+        pass
+    finally:
+        disconnect_vpn()
         sys.exit(0)

@@ -40,11 +40,20 @@ if errorlevel 1 (
     echo [OK] AceStream Engine detectado y en ejecucion.
 )
 
-:: 3. Lanzar la aplicacion
+:: 3. Conectar VPN antibloqueo mientras Furbo este en marcha
+set "PATH=%PATH%;C:\Program Files\Cloudflare\Cloudflare WARP\"
+warp-cli connect >nul 2>&1
+
+:: 4. Lanzar la aplicacion
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
 python backend\acestream_launcher.py
-if errorlevel 1 (
+set "EXIT_CODE=%ERRORLEVEL%"
+
+:: 5. Apagar VPN antibloqueo al cerrar la app
+warp-cli disconnect >nul 2>&1
+
+if "%EXIT_CODE%" neq "0" (
     echo.
     echo [!] Error al ejecutar. Asegurate de haber ejecutado instalar.bat primero.
     pause
