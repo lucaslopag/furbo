@@ -694,7 +694,7 @@ def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, s
     stdscr.erase()
 
     # ── Cabecera ──
-    title = " FURBO - ACESTREAM TV "
+    title = " ★ TEBAS CABRON TOMA SOLUCION ★ "
     safe_addstr(stdscr, 0, 0, title.center(w - 1), curses.color_pair(8) | curses.A_BOLD)
 
     # Widget de estado de AceStream Engine en tiempo real (Item 11)
