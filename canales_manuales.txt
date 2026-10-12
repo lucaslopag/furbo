@@ -7,3 +7,4 @@
 # Ejemplo:
 # Mi Canal, ES, acestream://688e785893b50acc1d00cb37f15bfc42e72f5ae3
 # =====================================================================
+FALSO. ELCANODOCUMENTAL FOCA [E], ES, acestream://aa82e7d4f03061f2144a2f4be22f2e2210d42280

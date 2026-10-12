@@ -3,7 +3,8 @@
 AceStream Launcher - Furbo (AceStream TV)
 Compatible con Windows y Linux.
 Navegación por Categorías, Búsqueda, Favoritos (Fondo Dorado),
-Borrado local de canales y Detección Automática de AceStream Engine.
+Historial de Reproducción, Borrado/Añadido local de canales,
+Comprobación de Peers y Detección Automática de AceStream Engine.
 """
 import curses
 import subprocess
@@ -13,6 +14,18 @@ import sys
 import urllib.request
 import urllib.error
 import json
+
+# ── Configurar codificación UTF-8 en Windows ────────────────────────────────
+if sys.platform.startswith('win'):
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+        if hasattr(sys.stdin, 'reconfigure'):
+            sys.stdin.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
 # ── Ruta base del proyecto (compatible con PyInstaller y ejecución normal) ───
 if getattr(sys, 'frozen', False):
@@ -24,6 +37,7 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 IS_WINDOWS = os.name == 'nt'
 
 FAV_FILE = os.path.join(ROOT_DIR, "favoritos.json")
+HIST_FILE = os.path.join(ROOT_DIR, "historial.json")
 
 CAT_META = {
     'la_liga': ('LA LIGA', 10),
@@ -60,14 +74,70 @@ def save_favorites(fav_set):
     except Exception:
         pass
 
+# ── Gestión de Historial Persistente (Últimos Reproducidos) ───────────────────
+def load_history():
+    if os.path.exists(HIST_FILE):
+        try:
+            with open(HIST_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            pass
+    return []
+
+def save_history(hist_list):
+    try:
+        with open(HIST_FILE, "w", encoding="utf-8") as f:
+            json.dump(hist_list[:25], f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+def record_channel_played(ch):
+    hist = load_history()
+    entry = {
+        "name": ch["name"],
+        "lang": ch.get("lang", "ES"),
+        "cid": ch.get("cid", ""),
+        "fpath": ch.get("fpath", ""),
+        "category": ch.get("category", "")
+    }
+    hist = [h for h in hist if h.get("cid") != entry["cid"] and h.get("name") != entry["name"]]
+    hist.insert(0, entry)
+    save_history(hist)
+
 # ── Carga canales organizados por categorías/carpetas ─────────────────────────
 def load_categories(fav_set=None):
     if fav_set is None:
         fav_set = load_favorites()
 
     categories = []
+
+    # 1. Historial de reproducción
+    hist_entries = load_history()
+    if hist_entries:
+        hist_chs = []
+        for h in hist_entries:
+            cid = h.get("cid", "")
+            is_fav = (cid in fav_set)
+            hist_chs.append({
+                "name": h.get("name", "Canal"),
+                "lang": h.get("lang", "ES"),
+                "cid": cid,
+                "url": f"http://127.0.0.1:6878/ace/getstream?id={cid}",
+                "category": "historial",
+                "fpath": h.get("fpath", ""),
+                "is_fav": is_fav
+            })
+        if hist_chs:
+            categories.append({
+                "name": "HISTORIAL (ÚLTIMOS REPRODUCIDOS)",
+                "key": "historial",
+                "order": 1,
+                "channels": hist_chs
+            })
     
-    # 1. Escanear carpetas de canales/
+    # 2. Escanear carpetas de canales/
     canales_dirs = [
         os.path.join(ROOT_DIR, "canales"),
         os.path.join(BASE_DIR, "canales")
@@ -104,7 +174,6 @@ def load_categories(fav_set=None):
                                             "is_fav": is_fav
                                         })
                         if chs:
-                            # Asegurar que no haya nombres repetidos en la categoría
                             name_counts = {}
                             for ch in chs:
                                 name_counts[ch["name"]] = name_counts.get(ch["name"], 0) + 1
@@ -116,7 +185,6 @@ def load_categories(fav_set=None):
                                         seen_occ[bn] = seen_occ.get(bn, 0) + 1
                                         ch["name"] = f"{bn} ({seen_occ[bn]})"
 
-                            # Favoritos siempre en primera posición
                             chs.sort(key=lambda x: (0 if x.get("is_fav") else 1))
 
                             cat_name, order = CAT_META.get(rel, (rel.upper().replace("_", " "), 900))
@@ -127,7 +195,7 @@ def load_categories(fav_set=None):
                                 "channels": chs
                             })
 
-    # 2. Canales manuales sueltos en raíz
+    # 3. Canales manuales sueltos en raíz
     manual_chs = []
     manual_files = [
         os.path.join(ROOT_DIR, "canales_manuales.txt"),
@@ -162,8 +230,43 @@ def load_categories(fav_set=None):
             "channels": manual_chs
         })
 
+    # 4. Carpeta al final del todo con TODOS LOS CANALES (orden 9999)
+    all_unique_chs = []
+    seen_all_cids = set()
+    for cat in categories:
+        if cat.get("key") in ("historial", "todos"):
+            continue
+        for ch in cat["channels"]:
+            cid = ch.get("cid")
+            if cid and cid not in seen_all_cids:
+                seen_all_cids.add(cid)
+                ch_copy = ch.copy()
+                all_unique_chs.append(ch_copy)
+
+    if all_unique_chs:
+        all_unique_chs.sort(key=lambda x: (0 if x.get("is_fav") else 1, x["name"].lower()))
+        categories.append({
+            "name": "TODOS LOS CANALES",
+            "key": "todos",
+            "order": 9999,
+            "channels": all_unique_chs
+        })
+
     categories.sort(key=lambda x: x["order"])
     return categories
+
+def get_root_items(categories, fav_set, all_channels_flat):
+    """Devuelve los canales favoritos arriba del todo y luego la lista de carpetas."""
+    fav_chs = []
+    seen = set()
+    for ch in all_channels_flat:
+        cid = ch.get("cid")
+        if cid and cid in fav_set and cid not in seen:
+            seen.add(cid)
+            ch_copy = ch.copy()
+            ch_copy["is_fav"] = True
+            fav_chs.append(ch_copy)
+    return fav_chs + categories
 
 # ── Borrado local de canal en archivo de disco ───────────────────────────────
 def delete_channel_file(ch):
@@ -223,13 +326,118 @@ def safe_hline(stdscr, y, x, ch, n):
     except curses.error:
         pass
 
+# ── Dibujar fila de canal con soporte para [E] en verde brillante ───────────
+def draw_channel_row(stdscr, y, w, mid_col, ch, is_sel):
+    is_fav = ch.get("is_fav", False)
+    lang = ch.get("lang", "ES")
+    col = LANG_COLORS.get(lang, 7)
+    lang_tag = f"[{lang}]"
+    
+    full_name = ch["name"]
+    has_excel_tag = full_name.endswith("[E]")
+    if has_excel_tag:
+        base_name = full_name[:-3].rstrip()
+    else:
+        base_name = full_name
+
+    fav_icon = "★ " if is_fav else "  "
+    avail_name_w = max(10, mid_col - 5)
+    
+    if is_sel:
+        prefix = " > "
+        if is_fav:
+            row_attr = curses.color_pair(11) | curses.A_BOLD | curses.A_STANDOUT
+            tag_attr = curses.color_pair(13) | curses.A_BOLD | curses.A_STANDOUT
+        else:
+            row_attr = curses.color_pair(10) | curses.A_BOLD
+            tag_attr = curses.color_pair(10) | curses.A_BOLD
+    else:
+        prefix = "   "
+        if is_fav:
+            row_attr = curses.color_pair(11) | curses.A_BOLD
+            tag_attr = curses.color_pair(13) | curses.A_BOLD
+        else:
+            row_attr = curses.color_pair(0)
+            tag_attr = curses.color_pair(2) | curses.A_BOLD
+
+    safe_addstr(stdscr, y, 0, f"{prefix}{fav_icon}", row_attr)
+    curr_x = len(prefix) + len(fav_icon)
+    
+    if has_excel_tag:
+        disp_base = base_name[:max(1, avail_name_w - 4)]
+        safe_addstr(stdscr, y, curr_x, disp_base, row_attr)
+        curr_x += len(disp_base)
+        safe_addstr(stdscr, y, curr_x, " [E]", tag_attr)
+        curr_x += 4
+    else:
+        disp_name = base_name[:avail_name_w]
+        safe_addstr(stdscr, y, curr_x, disp_name, row_attr)
+        curr_x += len(disp_name)
+
+    if curr_x < mid_col:
+        safe_addstr(stdscr, y, curr_x, " " * (mid_col - curr_x), row_attr)
+
+    if is_sel or is_fav:
+        safe_addstr(stdscr, y, mid_col, f" {lang_tag} ", row_attr)
+    else:
+        safe_addstr(stdscr, y, mid_col, lang_tag, curses.color_pair(col))
+
+    if is_fav:
+        badge = " ★ FAVORITO "
+        safe_addstr(stdscr, y, mid_col + 7, badge, row_attr)
+        fill_start = mid_col + 7 + len(badge)
+    else:
+        fill_start = mid_col + len(lang_tag) + 2
+
+    if (is_sel or is_fav) and fill_start < (w - 1):
+        safe_addstr(stdscr, y, fill_start, " " * (w - 1 - fill_start), row_attr)
+
+# ── Cuadro de Diálogo Modal para Entrada de Texto ───────────────────────────
+def prompt_input(stdscr, title, prompt_text, default_val=""):
+    h, w = stdscr.getmaxyx()
+    box_w = min(74, max(42, w - 4))
+    box_h = 7
+    box_y = max(1, (h - box_h) // 2)
+    box_x = max(1, (w - box_w) // 2)
+
+    val = default_val
+    curses.curs_set(1)
+    stdscr.timeout(-1)
+
+    while True:
+        for dy in range(box_h):
+            safe_addstr(stdscr, box_y + dy, box_x, " " * box_w, curses.color_pair(8))
+        safe_addstr(stdscr, box_y + 1, box_x + 2, f"=== {title} ==="[:box_w - 4], curses.color_pair(8) | curses.A_BOLD)
+        safe_addstr(stdscr, box_y + 3, box_x + 2, prompt_text[:box_w - 4], curses.color_pair(8))
+
+        disp_len = box_w - 6
+        inp_disp = val[-disp_len:] if len(val) > disp_len else val
+        safe_addstr(stdscr, box_y + 4, box_x + 2, f"> {inp_disp}_"[:box_w - 4], curses.color_pair(10) | curses.A_BOLD)
+        safe_addstr(stdscr, box_y + 5, box_x + 2, "[ENTER: Guardar | ESC: Cancelar]"[:box_w - 4], curses.color_pair(8) | curses.A_DIM)
+        stdscr.refresh()
+
+        ch = stdscr.getch()
+        if ch == 27:
+            curses.curs_set(0)
+            stdscr.timeout(100)
+            return None
+        elif ch in (10, 13):
+            curses.curs_set(0)
+            stdscr.timeout(100)
+            return val.strip()
+        elif ch in (curses.KEY_BACKSPACE, 127, 8):
+            val = val[:-1]
+        elif 32 <= ch <= 126:
+            val += chr(ch)
+
 # ── API del motor AceStream ─────────────────────────────────────────────────
 ACE_API = "http://127.0.0.1:6878"
 
 def ace_api(path):
     """Llama a la API del motor AceStream y devuelve el JSON o None."""
     try:
-        with urllib.request.urlopen(f"{ACE_API}{path}", timeout=3) as r:
+        req = urllib.request.Request(f"{ACE_API}{path}", headers={'User-Agent': 'Furbo/2.0'})
+        with urllib.request.urlopen(req, timeout=1.5) as r:
             return json.loads(r.read())
     except Exception:
         return None
@@ -246,7 +454,6 @@ def find_and_start_engine(stdscr=None, h=0, w=0, msg_y=0):
                         curses.color_pair(7) | curses.A_BOLD)
             stdscr.refresh()
 
-        # Rutas habituales en Windows
         candidate_paths = [
             os.path.expandvars(r"%APPDATA%\AceStream\engine\ace_engine.exe"),
             os.path.expandvars(r"%LOCALAPPDATA%\AceStream\engine\ace_engine.exe"),
@@ -257,7 +464,6 @@ def find_and_start_engine(stdscr=None, h=0, w=0, msg_y=0):
             os.path.expandvars(r"C:\Users\%USERNAME%\AppData\Local\AceStream\engine\ace_engine.exe"),
         ]
 
-        # Búsqueda en el Registro de Windows
         try:
             import winreg
             for root_hkey in [winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE]:
@@ -288,14 +494,12 @@ def find_and_start_engine(stdscr=None, h=0, w=0, msg_y=0):
         except Exception:
             pass
 
-        # Buscar en candidatos existentes
         found_exe = None
         for cp in candidate_paths:
             if cp and os.path.isfile(cp):
                 found_exe = cp
                 break
 
-        # Búsqueda rápida en AppData si no se halló
         if not found_exe:
             appdata = os.path.expandvars(r"%APPDATA%")
             if os.path.isdir(appdata):
@@ -312,7 +516,6 @@ def find_and_start_engine(stdscr=None, h=0, w=0, msg_y=0):
                             curses.color_pair(2) | curses.A_BOLD)
                 stdscr.refresh()
             try:
-                # Lanzar en segundo plano sin consola
                 DETACHED = 0x00000008 | 0x00000200
                 subprocess.Popen(
                     [found_exe],
@@ -323,7 +526,6 @@ def find_and_start_engine(stdscr=None, h=0, w=0, msg_y=0):
             except Exception:
                 pass
     else:
-        # Linux: Probar binario nativo o contenedor docker
         linux_bins = [
             "/snap/bin/acestream-player.engine",
             "/usr/bin/acestreamengine",
@@ -347,8 +549,7 @@ def find_and_start_engine(stdscr=None, h=0, w=0, msg_y=0):
             except Exception:
                 pass
 
-    # Esperar hasta que responda la API
-    for attempt in range(20):
+    for attempt in range(16):
         if ace_api("/webui/api/service?method=get_version"):
             return True
         if stdscr:
@@ -356,12 +557,15 @@ def find_and_start_engine(stdscr=None, h=0, w=0, msg_y=0):
             safe_addstr(stdscr, msg_y, 2, f"Esperando que AceStream responda{dots}".ljust(w - 4),
                         curses.color_pair(7) | curses.A_BOLD)
             stdscr.refresh()
-        time.sleep(0.5)
+        time.sleep(0.4)
 
     return ace_api("/webui/api/service?method=get_version") is not None
 
 def ensure_engine(stdscr, h, w, msg_y):
-    """Garantiza que AceStream Engine esté activo."""
+    """Garantiza que AceStream Engine esté activo de forma rápida si ya responde."""
+    if ace_api("/webui/api/service?method=get_version"):
+        return True
+
     safe_addstr(stdscr, msg_y, 2, "⏳ Comprobando motor AceStream...".ljust(w - 4),
                 curses.color_pair(7) | curses.A_BOLD)
     stdscr.refresh()
@@ -372,13 +576,14 @@ def ensure_engine(stdscr, h, w, msg_y):
                     "AceStream Engine conectado correctamente".ljust(w - 4),
                     curses.color_pair(2) | curses.A_BOLD)
         stdscr.refresh()
-        time.sleep(0.4)
+        time.sleep(0.3)
     else:
         safe_addstr(stdscr, msg_y, 2,
                     "! No se pudo conectar a AceStream. Asegurate de que este abierto.".ljust(w - 4),
                     curses.color_pair(7) | curses.A_BOLD)
         stdscr.refresh()
-        time.sleep(1.5)
+        time.sleep(1.2)
+    return ok
 
 # ── Iniciar stream y abrir reproductor ───────────────────────────────────────
 def start_stream(content_id, ch_name, stdscr, status_y, w):
@@ -431,15 +636,15 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
 
     if peers == 0:
         safe_addstr(stdscr, status_y, 2,
-                    "! Sin peers - abriendo reproductor igualmente...".ljust(w - 4),
+                    "! Sin peers detectados aun - abriendo reproductor igualmente...".ljust(w - 4),
                     curses.color_pair(7))
     else:
         player_name = "VLC" if IS_WINDOWS else "mpv"
         safe_addstr(stdscr, status_y, 2,
-                    f"{peers} peers - abriendo {player_name}".ljust(w - 4),
+                    f"✓ {peers} peers activos - abriendo {player_name}".ljust(w - 4),
                     curses.color_pair(2) | curses.A_BOLD)
     stdscr.refresh()
-    time.sleep(0.5)
+    time.sleep(0.4)
 
     # ── Lanzar reproductor de vídeo ──
     if IS_WINDOWS:
@@ -462,7 +667,7 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
                         "ERROR: VLC no encontrado. Instalalo desde videolan.org".ljust(w - 4),
                         curses.color_pair(1) | curses.A_BOLD)
             stdscr.refresh()
-            time.sleep(3)
+            time.sleep(2.5)
     else:
         subprocess.Popen(
             ["mpv", "--quiet", "--no-terminal", "--force-window=immediate",
@@ -479,7 +684,7 @@ def start_stream(content_id, ch_name, stdscr, status_y, w):
     return peers
 
 # ── Interfaz Curses ──────────────────────────────────────────────────────────
-def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, status):
+def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, status, engine_online):
     h, w = stdscr.getmaxyx()
     if h < 8 or w < 40:
         stdscr.erase()
@@ -491,11 +696,23 @@ def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, s
     # ── Cabecera ──
     title = " FURBO - ACESTREAM TV "
     safe_addstr(stdscr, 0, 0, title.center(w - 1), curses.color_pair(8) | curses.A_BOLD)
-    
-    if current_cat is None:
-        nav = " Selecciona una CARPETA/COMPETICION (ENTER: Entrar | /: Buscar | q: Salir) "
+
+    # Widget de estado de AceStream Engine en tiempo real (Item 11)
+    if engine_online:
+        engine_str = " [ACE: ● ON] "
+        eng_x = max(0, w - len(engine_str) - 1)
+        safe_addstr(stdscr, 0, eng_x, engine_str, curses.color_pair(12) | curses.A_BOLD)
     else:
-        nav = f" [CARPETA: {current_cat['name']}]  (BACKSPACE/ESC: Volver | ENTER: Reproducir | f: Favorito) "
+        engine_str = " [ACE: ○ OFF] "
+        eng_x = max(0, w - len(engine_str) - 1)
+        safe_addstr(stdscr, 0, eng_x, engine_str, curses.color_pair(1) | curses.A_BOLD)
+    
+    if current_cat is None and not search:
+        nav = " Favoritos arriba | CARPETAS abajo (ENTER: Abrir | /: Buscar | +: Añadir | q: Salir) "
+    elif current_cat is None and search:
+        nav = f" Búsqueda Global: '{search}' (ENTER: Fijar | ESC: Volver) "
+    else:
+        nav = f" [CARPETA: {current_cat['name']}]  (BACKSPACE/ESC: Volver | ENTER: Reproducir | f: Favorito | p: Peers) "
     safe_addstr(stdscr, 1, 0, nav.center(w - 1), curses.color_pair(9))
 
     # ── Separador ──
@@ -504,7 +721,7 @@ def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, s
         hint = f" >> Buscar canal: {search}_ "
         safe_addstr(stdscr, 2, 2, hint, curses.color_pair(3) | curses.A_BOLD)
     elif search:
-        hint = f" >> Filtrado: '{search}' ({len(items)} resultados) "
+        hint = f" >> Filtrado: '{search}' ({len(items)} resultados, favoritos arriba) "
         safe_addstr(stdscr, 2, 2, hint, curses.color_pair(4))
 
     # ── Lista principal ──
@@ -514,7 +731,7 @@ def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, s
     if list_h <= 0:
         return
 
-    # Posición central para el idioma [ES] (más cerca del centro de la pantalla)
+    # Posición central para el idioma [ES] (cerca del centro de la pantalla)
     mid_col = max(26, min(38, w // 2 - 2))
 
     for i in range(list_h):
@@ -526,70 +743,33 @@ def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, s
         is_sel = (idx == selected)
 
         if current_cat is None and not search:
-            # Vista de CARPETAS
-            cat_name = item["name"]
-            count = f"({len(item['channels'])} canales)"
-            name_w = w - len(count) - 8
-            if name_w < 1:
-                name_w = 1
-            line_name = cat_name[:name_w].ljust(name_w)
+            # En la vista principal: puede haber CANALES FAVORITOS arriba o DIRECTORIOS debajo
+            if "channels" in item:
+                # Es un DIRECTORIO / CARPETA
+                cat_name = item["name"]
+                count = f"({len(item['channels'])} canales)"
+                name_w = max(1, w - len(count) - 10)
+                line_name = cat_name[:name_w].ljust(name_w)
 
-            if is_sel:
-                line = f" > [DIR]  {line_name} {count} "
-                safe_addstr(stdscr, y, 0, line[:w - 1].ljust(w - 1), curses.color_pair(10) | curses.A_BOLD)
+                if is_sel:
+                    line = f" > [DIR]  {line_name} {count} "
+                    safe_addstr(stdscr, y, 0, line[:w - 1].ljust(w - 1), curses.color_pair(10) | curses.A_BOLD)
+                else:
+                    safe_addstr(stdscr, y, 0, f"   [DIR]  {line_name} ", curses.color_pair(0) | curses.A_BOLD)
+                    safe_addstr(stdscr, y, 10 + len(line_name), count, curses.color_pair(4))
             else:
-                safe_addstr(stdscr, y, 0, f"   [DIR]  {line_name} ", curses.color_pair(0) | curses.A_BOLD)
-                safe_addstr(stdscr, y, 10 + len(line_name), count, curses.color_pair(4))
+                # Es un CANAL FAVORITO en la parte superior
+                draw_channel_row(stdscr, y, w, mid_col, item, is_sel)
         else:
-            # Vista de CANALES
-            ch = item
-            is_fav = ch.get("is_fav", False)
-            lang = ch.get("lang", "ES")
-            col = LANG_COLORS.get(lang, 7)
-            lang_tag = f"[{lang}]"
+            # Vista dentro de carpeta o búsqueda: todos son canales
+            draw_channel_row(stdscr, y, w, mid_col, item, is_sel)
 
-            # Nombre formateado hasta mid_col
-            fav_icon = "★ " if is_fav else "  "
-            avail_name_w = max(10, mid_col - 5)
-            name_text = f"{fav_icon}{ch['name']}"[:avail_name_w].ljust(avail_name_w)
-
-            # Estilos de fila
-            if is_sel:
-                prefix = " > "
-                if is_fav:
-                    # Seleccionado y favorito: resaltado dorado/verde
-                    row_bg = curses.color_pair(11) | curses.A_BOLD | curses.A_STANDOUT
-                else:
-                    row_bg = curses.color_pair(10) | curses.A_BOLD
-                
-                safe_addstr(stdscr, y, 0, f"{prefix}{name_text}".ljust(mid_col), row_bg)
-                safe_addstr(stdscr, y, mid_col, f" {lang_tag} ", row_bg)
-                if is_fav:
-                    safe_addstr(stdscr, y, mid_col + 7, " ★ FAVORITO ", row_bg)
-                # rellenar hasta el final
-                rem_len = w - 1 - (mid_col + (20 if is_fav else 8))
-                if rem_len > 0:
-                    safe_addstr(stdscr, y, w - 1 - rem_len, " " * rem_len, row_bg)
-            else:
-                prefix = "   "
-                if is_fav:
-                    # Fondo Dorado para canales favoritos!
-                    gold_attr = curses.color_pair(11) | curses.A_BOLD
-                    safe_addstr(stdscr, y, 0, f"{prefix}{name_text}".ljust(mid_col), gold_attr)
-                    safe_addstr(stdscr, y, mid_col, f" {lang_tag} ", gold_attr)
-                    safe_addstr(stdscr, y, mid_col + 7, " ★ FAVORITO ", gold_attr)
-                    rem_len = w - 1 - (mid_col + 20)
-                    if rem_len > 0:
-                        safe_addstr(stdscr, y, w - 1 - rem_len, " " * rem_len, gold_attr)
-                else:
-                    # Canal normal
-                    safe_addstr(stdscr, y, 0, f"{prefix}{name_text}", curses.color_pair(0))
-                    safe_addstr(stdscr, y, mid_col, lang_tag, curses.color_pair(col))
-
-    # ── Barra de Scroll ──
+    # ── Barra de Scroll Protegida (Sin división por cero) ──
     if len(items) > list_h and list_h > 0:
-        bar_h = max(1, list_h * list_h // len(items))
-        bar_pos = int(scroll / max(1, len(items) - list_h) * (list_h - bar_h))
+        bar_h = max(1, list_h * list_h // max(1, len(items)))
+        max_scroll = max(1, len(items) - list_h)
+        avail_space = max(1, list_h - bar_h)
+        bar_pos = min(avail_space, max(0, int((scroll / max_scroll) * avail_space)))
         for r in range(list_h):
             ch_char = curses.ACS_CKBOARD if bar_pos <= r < bar_pos + bar_h else ord(' ')
             try:
@@ -600,7 +780,7 @@ def draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, s
     # ── Barra inferior y Controles ──
     safe_hline(stdscr, h - 3, 0, curses.ACS_HLINE, w - 1)
     safe_addstr(stdscr, h - 2, 0, f" {status}"[:w - 1].ljust(w - 1), curses.color_pair(9))
-    controls_bot = " ENTER: Reproducir | f: Favorito (★) | d: Borrar canal | ESC: Volver | /: Buscar | q: Salir"
+    controls_bot = " ENTER: Reproducir/Entrar | f: Fav (★) | +: Añadir | p: Peers | d: Borrar | ESC: Volver | /: Buscar | q: Salir"
     safe_addstr(stdscr, h - 1, 0, controls_bot[:w - 1], curses.color_pair(9) | curses.A_DIM)
     stdscr.refresh()
 
@@ -618,8 +798,8 @@ def main(stdscr):
     stdscr.timeout(100)
 
     # Pares de color estándar
-    curses.init_pair(1,  curses.COLOR_RED,     default_bg)   # ES
-    curses.init_pair(2,  curses.COLOR_GREEN,   default_bg)   # EN / OK
+    curses.init_pair(1,  curses.COLOR_RED,     default_bg)   # ES / Error
+    curses.init_pair(2,  curses.COLOR_GREEN,   default_bg)   # EN / OK / [E] tag
     curses.init_pair(3,  curses.COLOR_YELLOW,  default_bg)   # DE / search
     curses.init_pair(4,  curses.COLOR_CYAN,    default_bg)   # PL / count
     curses.init_pair(5,  curses.COLOR_MAGENTA, default_bg)   # PT
@@ -628,8 +808,9 @@ def main(stdscr):
     curses.init_pair(8,  curses.COLOR_BLACK,   curses.COLOR_CYAN)   # Header
     curses.init_pair(9,  curses.COLOR_WHITE,   curses.COLOR_BLUE)   # Footer/bar
     curses.init_pair(10, curses.COLOR_BLACK,   curses.COLOR_GREEN)  # Selected normal
-    # Color especial para Favoritos: FONDO DORADO / AMARILLO
     curses.init_pair(11, curses.COLOR_BLACK,   curses.COLOR_YELLOW) # Favorito (Fondo Dorado)
+    curses.init_pair(12, curses.COLOR_BLACK,   curses.COLOR_GREEN)  # Online Tag
+    curses.init_pair(13, curses.COLOR_GREEN,   curses.COLOR_YELLOW) # [E] tag en Fondo Dorado
 
     fav_set = load_favorites()
     categories = load_categories(fav_set)
@@ -642,23 +823,27 @@ def main(stdscr):
         stdscr.getch()
         return
 
-    # Aplanar todos los canales para búsqueda global
+    # Aplanar canales para búsqueda global y favoritos de inicio
     all_channels_flat = []
     for cat in categories:
-        all_channels_flat.extend(cat["channels"])
+        if cat.get("key") not in ("historial", "todos"):
+            all_channels_flat.extend(cat["channels"])
 
     current_cat = None
-    items = categories[:]
+    items = get_root_items(categories, fav_set, all_channels_flat)
     selected = 0
     scroll = 0
     search = ""
     search_mode = False
     
     total_chs = len(all_channels_flat)
-    status = f"{len(categories)} carpetas ({total_chs} canales)  -  ENTER para abrir | f: Favorito | d: Borrar"
+    status = f"{len(categories)} carpetas ({total_chs} canales)  -  ENTER para abrir | f: Favorito | +: Añadir canal"
 
     h, w = stdscr.getmaxyx()
     ensure_engine(stdscr, h, w, h // 2)
+
+    last_engine_check = 0
+    engine_online = False
 
     while True:
         h, w = stdscr.getmaxyx()
@@ -666,7 +851,12 @@ def main(stdscr):
         if list_h < 1:
             list_h = 1
 
-        draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, status)
+        now = time.time()
+        if now - last_engine_check > 3.0:
+            engine_online = (ace_api("/webui/api/service?method=get_version") is not None)
+            last_engine_check = now
+
+        draw_ui(stdscr, current_cat, items, selected, scroll, search, search_mode, status, engine_online)
 
         key = stdscr.getch()
         if key == -1:
@@ -678,7 +868,7 @@ def main(stdscr):
                 search_mode = False
                 search = ""
                 if current_cat is None:
-                    items = categories[:]
+                    items = get_root_items(categories, fav_set, all_channels_flat)
                     status = f"{len(categories)} carpetas ({total_chs} canales)"
                 else:
                     items = current_cat["channels"][:]
@@ -688,9 +878,11 @@ def main(stdscr):
             elif key in (curses.KEY_BACKSPACE, 127, 8):
                 search = search[:-1]
                 if search:
-                    items = [c for c in all_channels_flat if search.lower() in c["name"].lower()]
+                    matches = [c for c in all_channels_flat if search.lower() in c["name"].lower()]
+                    matches.sort(key=lambda x: (0 if x.get("is_fav") else 1))
+                    items = matches
                 else:
-                    items = categories[:] if current_cat is None else current_cat["channels"][:]
+                    items = get_root_items(categories, fav_set, all_channels_flat) if current_cat is None else current_cat["channels"][:]
                 selected = 0
                 scroll = 0
             elif key in (10, 13): # ENTER fija búsqueda
@@ -698,7 +890,9 @@ def main(stdscr):
                 status = f"'{search}' - {len(items)} resultado(s)"
             elif 32 <= key <= 126:
                 search += chr(key)
-                items = [c for c in all_channels_flat if search.lower() in c["name"].lower()]
+                matches = [c for c in all_channels_flat if search.lower() in c["name"].lower()]
+                matches.sort(key=lambda x: (0 if x.get("is_fav") else 1))
+                items = matches
                 selected = 0
                 scroll = 0
             continue
@@ -710,13 +904,83 @@ def main(stdscr):
         elif key == ord('/'):
             search_mode = True
             search = ""
-            current_cat = None # Buscar sobre todos los canales
+            current_cat = None
+
+        # ── Añadir nuevo canal interactivo (Tecla '+') ──
+        elif key == ord('+'):
+            ch_name_in = prompt_input(stdscr, "AÑADIR CANAL (1/3)", "Nombre del canal:")
+            if not ch_name_in:
+                status = "Añadir canal cancelado."
+                continue
+
+            lang_in = prompt_input(stdscr, "AÑADIR CANAL (2/3)", "Idioma (ES, EN, DE, FR...):", default_val="ES")
+            if not lang_in:
+                status = "Añadir canal cancelado."
+                continue
+            lang_in = lang_in.upper().strip()
+
+            cid_in = prompt_input(stdscr, "AÑADIR CANAL (3/3)", "Enlace acestream:// o Content ID:")
+            if not cid_in:
+                status = "Añadir canal cancelado."
+                continue
+            cid_clean = cid_in.replace("acestream://", "").strip()
+            if not cid_clean:
+                status = "Error: El ID de AceStream no puede estar vacío."
+                continue
+
+            dest_file = os.path.join(ROOT_DIR, "canales_manuales.txt")
+            if current_cat and current_cat.get("channels") and current_cat["channels"][0].get("fpath"):
+                dest_file = current_cat["channels"][0]["fpath"]
+
+            try:
+                with open(dest_file, "a", encoding="utf-8") as f:
+                    f.write(f"\n{ch_name_in}, {lang_in}, acestream://{cid_clean}\n")
+                status = f"[OK] ¡Canal '{ch_name_in}' añadido correctamente a {os.path.basename(dest_file)}!"
+                
+                # Recargar categorías
+                categories = load_categories(fav_set)
+                all_channels_flat = []
+                for cat in categories:
+                    if cat.get("key") not in ("historial", "todos"):
+                        all_channels_flat.extend(cat["channels"])
+                total_chs = len(all_channels_flat)
+
+                if current_cat:
+                    for c in categories:
+                        if c["key"] == current_cat["key"]:
+                            current_cat = c
+                            items = current_cat["channels"][:]
+                            selected = len(items) - 1
+                            break
+                else:
+                    items = get_root_items(categories, fav_set, all_channels_flat)
+            except Exception as e:
+                status = f"Error al guardar canal: {e}"
+
+        # ── Comprobar Peers / Estado del Canal (Tecla 'p' o 'P') ──
+        elif key in (ord('p'), ord('P')):
+            if items and selected < len(items):
+                target_item = items[selected]
+                if "channels" not in target_item: # Es un canal
+                    cid = target_item.get("cid", "")
+                    safe_addstr(stdscr, h - 2, 0, f"⏳ Consultando red P2P para '{target_item['name'][:25]}'...", curses.color_pair(3) | curses.A_BOLD)
+                    stdscr.refresh()
+                    stat = ace_api(f"/ace/stat/{cid}")
+                    if stat and stat.get("response"):
+                        resp = stat["response"]
+                        p_count = resp.get("peers", 0)
+                        st = resp.get("status", "inactivo")
+                        speed = resp.get("speed_down", 0)
+                        status = f"📊 {target_item['name']}: {p_count} peers | Estado: {st.upper()} | Vel: {speed} KB/s"
+                    else:
+                        status = f"📡 {target_item['name']} (CID: {cid[:16]}...) - Pulsa ENTER para arrancar stream"
 
         # ── Alternar Favorito (Tecla 'f' o 'F') ──
         elif key in (ord('f'), ord('F')):
-            if current_cat is not None or search:
-                if items and selected < len(items):
-                    ch = items[selected]
+            if items and selected < len(items):
+                target_item = items[selected]
+                if "channels" not in target_item: # Es un canal
+                    ch = target_item
                     cid = ch.get("cid", "")
                     if cid in fav_set:
                         fav_set.remove(cid)
@@ -725,67 +989,79 @@ def main(stdscr):
                     else:
                         fav_set.add(cid)
                         ch["is_fav"] = True
-                        status = f"★ ¡Añadido a favoritos (Posicion 1 y Dorado)!: {ch['name']}"
+                        status = f"★ ¡Añadido a favoritos (Posición 1 y Fondo Dorado)!: {ch['name']}"
                     save_favorites(fav_set)
 
-                    # Reordenar canales para que los favoritos queden arriba en la carpeta
-                    if current_cat:
+                    if current_cat is None and not search:
+                        items = get_root_items(categories, fav_set, all_channels_flat)
+                        selected = min(selected, max(0, len(items) - 1))
+                    elif current_cat:
                         current_cat["channels"].sort(key=lambda x: (0 if x.get("is_fav") else 1))
-                        if not search:
-                            items = current_cat["channels"][:]
-                            try:
-                                selected = items.index(ch)
-                            except ValueError:
-                                selected = 0
+                        items = current_cat["channels"][:]
+                        try:
+                            selected = items.index(ch)
+                        except ValueError:
+                            selected = 0
+                    elif search:
+                        items.sort(key=lambda x: (0 if x.get("is_fav") else 1))
 
         # ── Borrar Canal Localmente (Tecla 'd', 'D', 'x' o Supr) ──
         elif key in (ord('d'), ord('D'), ord('x'), ord('X'), curses.KEY_DC):
-            if (current_cat is not None or search) and items and selected < len(items):
-                target_ch = items[selected]
-                # Pedir confirmación al usuario
-                prompt_text = f" ¿Eliminar localmente '{target_ch['name'][:25]}'? (s/n): "
-                safe_addstr(stdscr, h - 2, 0, prompt_text.ljust(w - 1), curses.color_pair(3) | curses.A_BOLD)
-                stdscr.refresh()
-                stdscr.timeout(-1)
-                conf_key = stdscr.getch()
-                stdscr.timeout(100)
+            if items and selected < len(items):
+                target_item = items[selected]
+                if "channels" not in target_item: # Es un canal
+                    target_ch = target_item
+                    prompt_text = f" ¿Eliminar localmente '{target_ch['name'][:25]}'? (s/n): "
+                    safe_addstr(stdscr, h - 2, 0, prompt_text.ljust(w - 1), curses.color_pair(3) | curses.A_BOLD)
+                    stdscr.refresh()
+                    stdscr.timeout(-1)
+                    conf_key = stdscr.getch()
+                    stdscr.timeout(100)
 
-                if conf_key in (ord('s'), ord('S'), ord('y'), ord('Y')):
-                    # Eliminar del archivo .txt en disco
-                    delete_channel_file(target_ch)
-                    # Eliminar de favoritos si estaba
-                    cid = target_ch.get("cid", "")
-                    if cid in fav_set:
-                        fav_set.remove(cid)
-                        save_favorites(fav_set)
+                    if conf_key in (ord('s'), ord('S'), ord('y'), ord('Y')):
+                        delete_channel_file(target_ch)
+                        cid = target_ch.get("cid", "")
+                        if cid in fav_set:
+                            fav_set.remove(cid)
+                            save_favorites(fav_set)
 
-                    # Eliminar de listas en memoria
-                    if target_ch in items:
-                        items.remove(target_ch)
-                    if current_cat and target_ch in current_cat["channels"]:
-                        current_cat["channels"].remove(target_ch)
-                    if target_ch in all_channels_flat:
-                        all_channels_flat.remove(target_ch)
+                        categories = load_categories(fav_set)
+                        all_channels_flat = []
+                        for cat in categories:
+                            if cat.get("key") not in ("historial", "todos"):
+                                all_channels_flat.extend(cat["channels"])
+                        total_chs = len(all_channels_flat)
 
-                    selected = max(0, min(selected, len(items) - 1))
-                    status = f"[OK] Canal '{target_ch['name']}' eliminado localmente."
-                else:
-                    status = "Borrado cancelado."
+                        if current_cat is None and not search:
+                            items = get_root_items(categories, fav_set, all_channels_flat)
+                        elif current_cat:
+                            for c in categories:
+                                if c["key"] == current_cat["key"]:
+                                    current_cat = c
+                                    items = current_cat["channels"][:]
+                                    break
+                        elif search:
+                            items = [c for c in all_channels_flat if search.lower() in c["name"].lower()]
+                            items.sort(key=lambda x: (0 if x.get("is_fav") else 1))
+
+                        selected = max(0, min(selected, len(items) - 1))
+                        status = f"[OK] Canal '{target_ch['name']}' eliminado localmente."
+                    else:
+                        status = "Borrado cancelado."
 
         elif key in (27, curses.KEY_BACKSPACE, 127, 8):
-            # Salir de carpeta o limpiar búsqueda
             if search:
                 search = ""
-                items = categories[:] if current_cat is None else current_cat["channels"][:]
+                items = get_root_items(categories, fav_set, all_channels_flat) if current_cat is None else current_cat["channels"][:]
                 selected = 0
                 scroll = 0
                 status = f"{len(items)} elementos"
             elif current_cat is not None:
                 current_cat = None
-                items = categories[:]
+                items = get_root_items(categories, fav_set, all_channels_flat)
                 selected = 0
                 scroll = 0
-                status = f"{len(categories)} carpetas  -  ENTER para abrir"
+                status = f"{len(categories)} carpetas  -  ENTER para abrir | +: Añadir canal"
 
         elif key == curses.KEY_UP:
             if selected > 0:
@@ -810,23 +1086,28 @@ def main(stdscr):
                     scroll = selected - list_h + 1
 
         elif key in (10, 13) and items: # ENTER
-            if current_cat is None and not search:
+            target_item = items[selected]
+            if "channels" in target_item:
                 # Entrar a la carpeta seleccionada
-                current_cat = items[selected]
+                current_cat = target_item
                 items = current_cat["channels"][:]
                 selected = 0
                 scroll = 0
-                status = f"Carpeta: {current_cat['name']} ({len(items)} canales)  -  ENTER: Reproducir | f: Fav | d: Borrar"
+                status = f"Carpeta: {current_cat['name']} ({len(items)} canales)  -  ENTER: Reproducir | f: Fav | +: Añadir | p: Peers"
             else:
-                # Reproducir canal
-                ch = items[selected]
+                # Reproducir canal (favorito en menú principal o canal dentro de carpeta/búsqueda)
+                ch = target_item
                 ensure_engine(stdscr, h, w, h // 2)
                 url = ch["url"]
                 cid = ch.get("cid", "")
                 if not cid and "id=" in url:
                     cid = url.split("id=")[-1].split("&")[0]
+
+                record_channel_played(ch)
+                # Refrescar historial
+                categories = load_categories(fav_set)
                 peers = start_stream(cid, ch["name"], stdscr, h - 4, w)
-                p_str = f"{peers} peers" if peers else "sin peers"
+                p_str = f"{peers} peers" if peers else "conectando"
                 status = f">  {ch['name']} [{ch['lang']}] - {p_str}"
 
         elif key == curses.KEY_RESIZE:
@@ -836,4 +1117,9 @@ def main(stdscr):
                 pass
 
 if __name__ == "__main__":
-    curses.wrapper(main)
+    try:
+        curses.wrapper(main)
+    except KeyboardInterrupt:
+        sys.exit(0)
+    except Exception:
+        sys.exit(0)

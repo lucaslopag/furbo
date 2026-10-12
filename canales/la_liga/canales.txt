@@ -12,3 +12,14 @@ DAZN LaLiga 2, ES, acestream://9c588ac92554746c489bc553773d959f6d2dfd8e
 Movistar Plus+ (Partido LaLiga), ES, acestream://ed74406ccdb3c21941b919db6bffca7f1de015bb
 DAZN 1 Bar FHD (LaLiga Bares), ES, acestream://1e7f5efc1913efaf7042a9b1a49d1f9adc5bc187
 Movistar Vamos (Resumenes LaLiga), ES, acestream://6b60251bc893c4e79fdfa37a1f5f6212e73ea6f9
+Movistar LaLiga [E], ES, acestream://0b5f802f2de6488b4023d0f05195486e19d81ed7
+Canal Mejicano? TUDN [E], ES, acestream://a588cff6e26152f065c7d1b2386a490ce9fc97b8
+DAZN 2 [E], DE, acestream://12ea555d431dbe51fc8e4ca745aec09fe22a4865
+ELEVEN SPORTS 4 [E], PL, acestream://458a0ddd7d193f6d2750cd14d03a47f47a808e09
+ELEVEN SPORTS 3NA ZYWO [E], PL, acestream://b146ee4b6e16c9df58e27bd02ffd6cea840ff212
+ELEVEN SPORTS 2 [E], PL, acestream://54a4a28882d3cae1ca19de5d4b022ebea40351f9
+DAZN 1 [E], PT, acestream://36cad67fed5a739757a9db844a551aa845a8d51b
+5 (Logo rojo grande) [E], RU, acestream://3e1f6de8444abb15efeadb97952d6324e5b6ed9f
+Матч! Футбол 2 [E], RU, acestream://ffbf8c687c788d9a1a7c651e24802ee773ff3f04
+Матч10 [E], RU, acestream://a203f6b935a8ad8659c4c76c1d9c13afa6368ef2
+SETANTA 2 SPORTS [E], RU, acestream://f6d68cfa8694f814983f2a5757f4e0c4964b880c

@@ -21,6 +21,9 @@ backend/acestream_error.log
 subir.sh
 contexto.md
 *.xlsx
+favoritos.json
+historial.json
+*.json.bak
 
 # Exclusivo de Linux (no subir a GitHub)
 *.sh

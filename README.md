@@ -38,16 +38,25 @@ Solo tienes que seguir estos 3 pasos:
 | **⬆️ / ⬇️ Flechas** | Moverte arriba y abajo por la lista de carpetas y canales |
 | **ENTER** | Entrar en una carpeta o reproducir el canal seleccionado |
 | **f** | **Marcar / desmarcar como Favorito (★)**: Pasa a la primera posición y se resalta con **fondo dorado** |
+| **+** | **Añadir canal nuevo**: Añadir un canal directamente desde la interfaz gráfica |
+| **p** | **Comprobar peers/estado**: Verifica si el canal seleccionado está emitiendo en directo y muestra peers |
 | **d** o **Supr** | **Borrar canal localmente**: Elimina el canal de la lista y del archivo con confirmación |
-| **/** | Buscar cualquier canal por su nombre en tiempo real |
+| **/** | Buscar cualquier canal por su nombre en tiempo real (con favoritos arriba) |
 | **ESC / Retroceso**| Volver a la lista de carpetas o cancelar la búsqueda |
-| **q** | Salir del programa |
+| **q** | Salir del programa limpiamente |
 
 ---
 
 ## ➕ ¿Cómo añadir tus propios canales?
 
-Abre el archivo **`canales_manuales.txt`** con el Bloc de Notas, escribe el nombre, idioma y enlace separados por comas (por ejemplo: `Mi Canal, ES, acestream://...`), guarda el archivo y aparecerá en Furbo.
+Puedes pulsar **`+`** directamente dentro de la aplicación para añadir un canal de forma guiada, o bien abrir el archivo **`canales_manuales.txt`** con el Bloc de Notas y escribir: `Nombre, ES, acestream://...`.
+
+---
+
+## 💻 Uso en Windows (PowerShell y CMD)
+- Para iniciar Furbo ejecuta: `.\furbo.bat`
+- Para subir cambios a tu repositorio ejecuta: `.\subir.bat`
+*(Nota: En Windows usa los archivos `.bat`. No ejecutes los archivos `.sh` ya que pertenecen a Linux).*
 
 ---
 

@@ -5,3 +5,10 @@ Liga de Campeones 4 (Opcion 1), ES, acestream://91ac4585368992720ec17ffa5b438936
 Liga de Campeones 4 (Opcion 2), ES, acestream://e9f4493d2d851f4636720f639113e05b4a21a74c
 Liga de Campeones 4 (Opcion 3), ES, acestream://6fbab1d8d6bf93c4bc7552714aa3bb54ebf7b661
 Movistar Plus+ (Partido Champions), ES, acestream://1ab443f5b4beb6d586f19e8b25b9f9646cf2ab78
+Movistar Liga Campeones 1 [E], ES, acestream://e572a5178ff72eed7d1d751a18b4b3419699f370
+Movistar con logo ruso [E], ES, acestream://728fc04ea6bfa7bab9651c696995654c6ad1a0c2
+TNT con logo ruso [E], EN, acestream://2da4edd10245813b87b23d21954b51db5fbdcc96
+VIX (Latino) [E], ES, acestream://87bc97c5f8404567e330128711fd73e8cde3378e
+DAZN 1 [E], DE, acestream://897e73c9d578848f596585314ecb9ae067c0e229
+POLSAT SPORT PREMIUM 1 [E], PL, acestream://4ce55db7e578ff52a6e526cf610e477464b8a99f
+DAZN 3 [E], PT, acestream://dae7d1251f069516cc0a9c8f15f6639d2a17df1e
