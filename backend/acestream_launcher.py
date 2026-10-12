@@ -224,7 +224,7 @@ def load_categories(fav_set=None):
     if manual_chs:
         manual_chs.sort(key=lambda x: (0 if x.get("is_fav") else 1))
         categories.append({
-            "name": "CANALES MANUALES",
+            "name": "CANALES AÑADIDOS MANUALMENTE",
             "key": "manuales",
             "order": 9100,
             "channels": manual_chs
