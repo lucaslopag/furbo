@@ -92,7 +92,7 @@ if errorlevel 1 (
 )
 
 python -m pip install --upgrade pip >nul 2>&1
-python -m pip install -r backend\requirements.txt windows-curses
+python -m pip install -r backend\requirements.txt "windows-curses>=2.4.2"
 if errorlevel 1 (
     echo [!] Error instalando dependencias.
     pause

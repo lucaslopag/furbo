@@ -6,16 +6,47 @@ Navegación por Categorías, Búsqueda, Favoritos (Fondo Dorado),
 Historial de Reproducción, Borrado/Añadido local de canales,
 Comprobación de Peers y Detección Automática de AceStream Engine.
 """
-import curses
-import subprocess
-import time
 import os
 import sys
+import subprocess
+import time
 import urllib.request
 import urllib.error
 import json
 import atexit
 import signal
+
+IS_WINDOWS = sys.platform.startswith('win') or os.name == 'nt'
+
+# ── Curses para Windows y Linux (Auto-reparación si falta en Windows) ────────
+try:
+    import curses
+except (ImportError, ModuleNotFoundError):
+    if IS_WINDOWS:
+        print("[*] 'windows-curses' no detectado. Intentando instalar automáticamente...")
+        try:
+            subprocess.check_call([
+                sys.executable, "-m", "pip", "install", "--upgrade", "windows-curses>=2.4.2"
+            ])
+            import curses
+            print("[OK] 'windows-curses' instalado y cargado con éxito.")
+        except Exception as _err:
+            print("\n" + "=" * 65)
+            print(" [!] ERROR: No se pudo importar o instalar 'curses' en Windows.")
+            print(f" [!] Intérprete Python: {sys.executable} (v{sys.version.split()[0]})")
+            print(" [!] En Windows, Furbo requiere el paquete 'windows-curses'.")
+            print(" [>] Solución:")
+            print(f'     1. Ejecuta: "{sys.executable}" -m pip install "windows-curses>=2.4.2"')
+            print("     2. O ejecuta 'instalar.bat'")
+            print("=" * 65)
+            try:
+                input("\nPresiona Enter para salir...")
+            except Exception:
+                pass
+            sys.exit(1)
+    else:
+        raise
+
 
 # ── Gestión Automática de VPN Antibloqueo (Cloudflare WARP) ─────────────────
 WARP_PATHS = [

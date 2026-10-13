@@ -44,7 +44,14 @@ if errorlevel 1 (
 set "PATH=%PATH%;C:\Program Files\Cloudflare\Cloudflare WARP\"
 warp-cli connect >nul 2>&1
 
-:: 4. Lanzar la aplicacion
+:: 4. Comprobar dependencias minimas de Python
+python -c "import curses" >nul 2>&1
+if errorlevel 1 (
+    echo [*] Configurando dependencias de Python...
+    python -m pip install -r backend\requirements.txt "windows-curses>=2.4.2"
+)
+
+:: 5. Lanzar la aplicacion
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
 python backend\acestream_launcher.py
