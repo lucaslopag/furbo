@@ -39,3 +39,7 @@ backup_*
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Configuracion local de cada PC (idioma elegido) y marca de VPN
+config.json
+.warp_owned

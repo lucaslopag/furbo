@@ -56,27 +56,32 @@ exit /b 0
 :git_ok
 echo [OK] Git ya esta instalado.
 
-:: 3. Instalar red antibloqueo (Cloudflare WARP)
-warp-cli --version >nul 2>&1
-if not errorlevel 1 goto warp_ok
+:: 3. Instalar y configurar la red antibloqueo (Cloudflare WARP)
+call :find_warp
+if defined WARP_CLI goto warp_installed
 
 echo.
 echo [!] VPN Antibloqueo (WARP) no encontrado. Instalando automaticamente...
 winget install Cloudflare.Warp --accept-package-agreements --accept-source-agreements
-set PATH=%PATH%;C:\Program Files\Cloudflare\Cloudflare WARP\
-warp-cli --version >nul 2>&1
-if errorlevel 1 (
-    echo [!] No se pudo instalar WARP automaticamente.
-    echo     Puedes bajarlo manualmente de https://1.1.1.1 para saltar los bloqueos.
-    pause
-    echo [*] Configurando conexion VPN antibloqueo...
-    warp-cli registration new >nul 2>&1
-    warp-cli disconnect >nul 2>&1
-    echo [OK] Red antibloqueo lista (se conectara solo al abrir Furbo).
-)
+call :find_warp
+if defined WARP_CLI goto warp_installed
 
-:warp_ok
-echo [OK] Red antibloqueo instalada.
+echo [!] No se pudo instalar WARP automaticamente.
+echo     Puedes bajarlo manualmente de https://1.1.1.1 y volver a ejecutar instalar.bat
+echo     (Furbo funciona igualmente, pero algunas operadoras pueden bloquear canales).
+goto warp_done
+
+:warp_installed
+echo [*] Configurando WARP (aceptando terminos y registrando el dispositivo)...
+sc start CloudflareWARP >nul 2>&1
+timeout /t 3 >nul
+"%WARP_CLI%" --accept-tos registration new >nul 2>&1
+if errorlevel 1 "%WARP_CLI%" registration new >nul 2>&1
+if errorlevel 1 "%WARP_CLI%" register >nul 2>&1
+"%WARP_CLI%" --accept-tos disconnect >nul 2>&1
+echo [OK] WARP listo: Furbo lo conecta y desconecta solo, sin pedirte nada.
+
+:warp_done
 
 :: 4. Instalar dependencias de Python
 echo.
@@ -100,7 +105,7 @@ if errorlevel 1 (
 )
 echo [OK] Dependencias instaladas.
 
-:: 4. Comprobar VLC
+:: 5. Comprobar VLC
 if exist "C:\Program Files\VideoLAN\VLC\vlc.exe" goto vlc_ok
 if exist "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe" goto vlc_ok
 
@@ -128,3 +133,11 @@ echo     1. Abre AceStream Engine (icono azul en la bandeja)
 echo     2. Haz doble clic en "furbo.bat"
 echo.
 pause
+exit /b 0
+
+:find_warp
+set "WARP_CLI="
+where warp-cli >nul 2>&1 && set "WARP_CLI=warp-cli"
+if not defined WARP_CLI if exist "%ProgramFiles%\Cloudflare\Cloudflare WARP\warp-cli.exe" set "WARP_CLI=%ProgramFiles%\Cloudflare\Cloudflare WARP\warp-cli.exe"
+if not defined WARP_CLI if exist "%ProgramFiles(x86)%\Cloudflare\Cloudflare WARP\warp-cli.exe" set "WARP_CLI=%ProgramFiles(x86)%\Cloudflare\Cloudflare WARP\warp-cli.exe"
+exit /b 0

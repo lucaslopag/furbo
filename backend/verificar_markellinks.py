@@ -98,7 +98,11 @@ def fetch_m3u_channels():
 
 def main():
     print("[*] Descargando canales desde markellinks.app...")
-    categories = fetch_m3u_channels()
+    try:
+        categories = fetch_m3u_channels()
+    except Exception as e:
+        print(f"[!] No se pudo descargar la lista ({e}). Comprueba tu conexion e intentalo de nuevo.")
+        sys.exit(1)
     total_found = sum(len(chs) for chs in categories.values())
     print(f"[+] {total_found} canales encontrados en {len(categories)} categorias.")
 
@@ -140,13 +144,18 @@ def main():
         results_by_cat[cat_name] = active_channels
         
         # Guardar archivo por categoría si tiene canales o dejar el template
-        cat_filename = re.sub(r'[^a-zA-Z0-9_\-]', '_', cat_name.lower()) + ".txt"
-        cat_filepath = os.path.join(canales_dir, cat_filename)
+        # Una carpeta por categoria con su canales.txt (es el formato que lee Furbo)
+        cat_slug = re.sub(r'[^a-zA-Z0-9_\-]', '_', cat_name.lower())
+        cat_dir = os.path.join(canales_dir, cat_slug)
+        os.makedirs(cat_dir, exist_ok=True)
+        cat_filepath = os.path.join(cat_dir, "canales.txt")
         with open(cat_filepath, "w", encoding="utf-8") as f:
             f.write(f"# Categoria: {cat_name}\n")
             f.write(f"# Canales comprobados y funcionando ({len(active_channels)} online)\n\n")
             for ach in active_channels:
-                f.write(f"{ach['name']}, ES, acestream://{ach['cid']}\n")
+                # Se asume espanol; cambia el idioma aqui si la lista trae canales de otros paises
+                safe_name = ach['name'].replace(",", " ")
+                f.write(f"{safe_name}, ES, acestream://{ach['cid']}\n")
 
     # Resumen y volcado general
     summary_path = os.path.join(ROOT_DIR, "backend", "canales_verificados.json")
