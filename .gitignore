@@ -43,3 +43,10 @@ Thumbs.db
 # Configuracion local de cada PC (idioma elegido) y marca de VPN
 config.json
 .warp_owned
+
+# Archivos comprimidos y paquetes temporales
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
